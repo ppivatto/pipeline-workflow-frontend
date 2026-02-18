@@ -8,7 +8,7 @@ export default function AccountsList() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
-  const { } = useLanguage();
+  const { t } = useLanguage();
   // ... rest of component using t or just remove it if unused
 
 
@@ -38,7 +38,7 @@ export default function AccountsList() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ margin: 0, fontSize: '1.875rem', fontWeight: 700, color: 'var(--text-main)' }}>
-          Bandeja de <span style={{ color: 'var(--primary)' }}>Cuentas</span>
+          {t('header_accounts')}
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {/* Logo AXA placeholder as requested in layout description, though maybe not strictly needed if we have own logo */}
@@ -50,7 +50,7 @@ export default function AccountsList() {
           <Search size={20} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
-            placeholder="Buscar por Razón Social o Identificador..."
+            placeholder={t('search_placeholder')}
             className="input"
             style={{ marginBottom: 0, paddingLeft: '3rem' }}
             value={searchTerm}
@@ -58,7 +58,7 @@ export default function AccountsList() {
           />
         </div>
         <Link to="/accounts/new" className="btn btn-primary" style={{ whiteSpace: 'nowrap', textDecoration: 'none' }}>
-          <Plus size={20} /> Alta de Cuenta
+          <Plus size={20} /> {t('create_account')}
         </Link>
       </div>
 
@@ -66,10 +66,10 @@ export default function AccountsList() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', background: 'var(--header-bg)' }}>
-              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Razón Social</th>
-              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Identificador</th>
-              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Industria</th>
-              <th style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Acciones</th>
+              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>{t('col_account')}</th>
+              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>{t('identifier')}</th>
+              <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>{t('industry')}</th>
+              <th style={{ padding: '1rem', textAlign: 'right', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>{t('col_actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -96,10 +96,10 @@ export default function AccountsList() {
                       navigate(`/accounts/new?id=${account.id}`);
                     }}
                   >
-                    <Plus size={14} /> Nueva Oportunidad
+                    <Plus size={14} /> {t('new_opportunity')}
                   </button>
                   <button className="btn btn-secondary" style={{ padding: '0.4rem', fontSize: '0.75rem' }}>
-                    Detalle <ArrowRight size={14} />
+                    {t('detail')} <ArrowRight size={14} />
                   </button>
                 </td>
               </tr>
@@ -107,7 +107,7 @@ export default function AccountsList() {
             {accounts.length === 0 && (
               <tr>
                 <td colSpan={4} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  No se encontraron cuentas
+                  {t('no_accounts')}
                 </td>
               </tr>
             )}

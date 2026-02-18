@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/client';
 import { ArrowLeft, Save, ArrowRight, Loader2 } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ReadOnlyData {
   cuenta: string;
@@ -67,6 +68,7 @@ const ESTATUS_OPTIONS = [
 export default function Negotiation() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const [readOnly, setReadOnly] = useState<ReadOnlyData>({
     cuenta: '', ramo: '', fechaInicioVigencia: '', primaObjetivo: ''
@@ -190,35 +192,47 @@ export default function Negotiation() {
     <div style={{ paddingBottom: '4rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ margin: 0, color: 'var(--text-main)' }}>
-          <span style={{ color: 'var(--primary)' }}>Negociación</span>
+          <span style={{ color: 'var(--primary)' }}>{t('header_negotiation')}</span>
         </h1>
-        {successMsg && <span style={{ color: 'var(--success)', fontWeight: 600 }}>{successMsg}</span>}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {successMsg && <span style={{ color: 'var(--success)', fontWeight: 600, marginRight: '1rem' }}>{t(successMsg.includes('Mock') ? 'success_save' : 'success_save')}</span>}
+
+          <button onClick={handleBack} className="btn btn-secondary" style={{ padding: '0.5rem', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={t('back')}>
+            <ArrowLeft size={18} />
+          </button>
+          <button onClick={handleSave} className="btn btn-primary" style={{ padding: '0.5rem', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={loading} title={t('save')}>
+            {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+          </button>
+          <button onClick={handleNext} className="btn btn-secondary" style={{ padding: '0.5rem', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={loading} title={t('next')}>
+            <ArrowRight size={18} />
+          </button>
+        </div>
       </div>
 
       <div className="card glass">
         {/* Inherited Read-Only Data */}
-        {/* Inherited Read-Only Data */}
         <div className="form-grid" style={{ marginBottom: '2rem' }}>
           <div className="col-span-4">
-            <label>Cuenta</label>
+            <label>{t('account')}</label>
             <input className="input" value={readOnly.cuenta} disabled />
           </div>
           <div>
-            <label>Ramo</label>
+            <label>{t('ramo')}</label>
             <input className="input" value={readOnly.ramo} disabled />
           </div>
           <div>
-            <label>Fecha de Inicio de vigencia</label>
+            <label>{t('start_date')}</label>
             <input type="text" className="input" value={readOnly.fechaInicioVigencia} disabled />
           </div>
           <div>
-            <label>Prima objetivo</label>
+            <label>{t('target_premium')}</label>
             <input className="input" value={readOnly.primaObjetivo ? `$${Number(readOnly.primaObjetivo).toLocaleString()}` : ''} disabled />
           </div>
         </div>
 
         {/* Negotiation Capture */}
-        <div className="form-section-title">Captura de Negociación</div>
+        <div className="form-section-title">{t('capture_negotiation')}</div>
         <div className="form-grid">
           <div className="col-span-4" style={{ marginBottom: '0.5rem' }}>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
@@ -228,11 +242,11 @@ export default function Negotiation() {
                 onChange={e => handleChange('seQuedo', e.target.checked)}
                 style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
               />
-              ¿Se quedó?
+              {t('stayed')}
             </label>
           </div>
           <div>
-            <label>Población Asegurada *</label>
+            <label>{t('insured_pop')} *</label>
             <input
               type="number"
               min="1"
@@ -244,14 +258,14 @@ export default function Negotiation() {
             />
           </div>
           <div>
-            <label>Estatus *</label>
+            <label>{t('status')} *</label>
             <select className={getInputClass('estatus')} value={form.estatus} onChange={e => handleChange('estatus', e.target.value)}>
-              <option value="">Selecciona...</option>
+              <option value="">{t('select')}</option>
               {ESTATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div>
-            <label>Prima Asegurados</label>
+            <label>{t('insured_premium')}</label>
             <input
               type="number"
               className="input"
@@ -265,24 +279,24 @@ export default function Negotiation() {
         {/* Conditional Loss Fields */}
         {showLossFields && (
           <>
-            <div className="form-section-title">Datos de Pérdida</div>
+            <div className="form-section-title">{t('loss_data')}</div>
             <div className="form-grid">
               <div>
-                <label>Motivo de no ganado {form.estatus === 'PERDIDA' ? '*' : ''}</label>
+                <label>{t('loss_reason')} {form.estatus === 'PERDIDA' ? '*' : ''}</label>
                 <select className={getInputClass('motivoNoGanado')} value={form.motivoNoGanado} onChange={e => handleChange('motivoNoGanado', e.target.value)}>
-                  <option value="">Selecciona...</option>
+                  <option value="">{t('select')}</option>
                   {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
               <div>
-                <label>Aseguradora ganadora {form.estatus === 'PERDIDA' ? '*' : ''}</label>
+                <label>{t('winning_insurer')} {form.estatus === 'PERDIDA' ? '*' : ''}</label>
                 <select className={getInputClass('aseguradoraGanadora')} value={form.aseguradoraGanadora} onChange={e => handleChange('aseguradoraGanadora', e.target.value)}>
-                  <option value="">Selecciona...</option>
+                  <option value="">{t('select')}</option>
                   {ASEGURADORAS.map(a => <option key={a} value={a}>{a}</option>)}
                 </select>
               </div>
               <div>
-                <label>Prima ofertada por la competencia</label>
+                <label>{t('comp_premium')}</label>
                 <input
                   type="number"
                   className="input"
@@ -296,10 +310,10 @@ export default function Negotiation() {
         )}
 
         {/* Cuidado Integral */}
-        <div className="form-section-title">Cuidado Integral</div>
+        <div className="form-section-title">{t('integral_care_section')}</div>
         <div className="form-grid">
           <div className="col-span-2">
-            <label>Población</label>
+            <label>{t('integral_pop')}</label>
             <input
               type="number"
               className="input"
@@ -309,7 +323,7 @@ export default function Negotiation() {
             />
           </div>
           <div className="col-span-2">
-            <label>Prima</label>
+            <label>{t('integral_premium')}</label>
             <input
               type="number"
               className="input"
@@ -321,31 +335,16 @@ export default function Negotiation() {
         </div>
 
         {/* Observaciones */}
-        <div className="form-section-title">Observaciones</div>
+        <div className="form-section-title">{t('section_observations')}</div>
         <div className="form-grid">
           <div className="col-span-4">
-            <label>Observaciones *</label>
+            <label>{t('observations')} *</label>
             <textarea
               className={getInputClass('observaciones')}
               value={form.observaciones}
               onChange={e => handleChange('observaciones', e.target.value)}
               placeholder="Escribe tu texto aquí..."
             />
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem' }}>
-          <button onClick={handleBack} className="btn btn-secondary">
-            <ArrowLeft size={18} /> Anterior
-          </button>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button onClick={handleSave} className="btn btn-primary" disabled={loading}>
-              {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Guardar
-            </button>
-            <button onClick={handleNext} className="btn btn-secondary" disabled={loading}>
-              Siguiente <ArrowRight size={18} />
-            </button>
           </div>
         </div>
       </div>

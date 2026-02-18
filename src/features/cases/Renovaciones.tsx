@@ -29,7 +29,7 @@ export default function Renovaciones() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [loading, setLoading] = useState(false);
-  const { } = useLanguage();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   // Pagination
@@ -67,13 +67,13 @@ export default function Renovaciones() {
   return (
     <div style={{ paddingBottom: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
-        <h1 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.5rem', fontWeight: 700 }}>Bandeja de renovaciones</h1>
+        <h1 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.5rem', fontWeight: 700 }}>{t('header_renewals')}</h1>
       </div>
 
       <div className="card glass">
         {/* Account Filter */}
         <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-main)', fontWeight: 500 }}>Cuenta</label>
+          <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-main)', fontWeight: 500 }}>{t('account')}</label>
           <div style={{ position: 'relative' }}>
             <select
               className="input"
@@ -81,7 +81,7 @@ export default function Renovaciones() {
               onChange={e => { setSelectedAccountId(e.target.value); setPage(1); }}
               style={{ paddingRight: '2rem' }}
             >
-              <option value="">Buscar o seleccionar...</option>
+              <option value="">{t('search_placeholder')}</option>
               {accounts.map(acc => (
                 <option key={acc.id} value={acc.id}>{acc.name}</option>
               ))}
@@ -97,21 +97,21 @@ export default function Renovaciones() {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
             <thead>
               <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '0.85rem', textTransform: 'uppercase' }}>
-                <th style={{ padding: '1rem' }}>NUMERO</th>
-                <th style={{ padding: '1rem' }}>CUENTA</th>
-                <th style={{ padding: '1rem' }}>RAMO</th>
-                <th style={{ padding: '1rem' }}>PASO</th>
-                <th style={{ padding: '1rem' }}>TIPO</th>
-                <th style={{ padding: '1rem' }}>SUBTIPO</th>
-                <th style={{ padding: '1rem' }}>ESTADO</th>
-                <th style={{ padding: '1rem' }}>ACCIONES</th>
+                <th style={{ padding: '1rem' }}>{t('col_number')}</th>
+                <th style={{ padding: '1rem' }}>{t('col_account')}</th>
+                <th style={{ padding: '1rem' }}>{t('col_line')}</th>
+                <th style={{ padding: '1rem' }}>{t('col_step')}</th>
+                <th style={{ padding: '1rem' }}>{t('col_type')}</th>
+                <th style={{ padding: '1rem' }}>{t('col_subtype')}</th>
+                <th style={{ padding: '1rem' }}>{t('col_status')}</th>
+                <th style={{ padding: '1rem' }}>{t('col_actions')}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    Cargando...
+                    {t('loading')}
                   </td>
                 </tr>
               ) : paginatedCases.length > 0 ? (
@@ -130,7 +130,7 @@ export default function Renovaciones() {
                         className="btn btn-primary"
                         style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                       >
-                        <Plus size={14} /> Nueva
+                        <Plus size={14} /> {t('new_case')}
                       </button>
                     </td>
                   </tr>
@@ -138,7 +138,7 @@ export default function Renovaciones() {
               ) : (
                 <tr>
                   <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    {selectedAccountId ? 'No se encontraron pantallas existentes' : 'Selecciona una cuenta para ver los casos'}
+                    {selectedAccountId ? t('no_cases') : t('select_account')}
                   </td>
                 </tr>
               )}

@@ -77,7 +77,7 @@ export default function NewAccount() {
   const accountId = searchParams.get('id');
   const caseId = searchParams.get('caseId'); // Get caseId for editing
   const parentCaseId = searchParams.get('parentCaseId');
-  const { } = useLanguage();
+  const { t } = useLanguage();
 
   // Load account/case data if editing
   useEffect(() => {
@@ -252,51 +252,51 @@ export default function NewAccount() {
     <div style={{ paddingBottom: '4rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ margin: 0, color: 'var(--text-main)' }}>
-          {caseId ? 'Seguimiento de ' : 'Alta de '}
-          <span style={{ color: 'var(--primary)' }}>{caseId ? 'Caso' : 'Cuentas'}</span>
+          {caseId ? t('header_new_case') : t('header_new_account')}
         </h1>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          {successMsg && <span style={{ color: 'var(--success)', fontWeight: 600, marginRight: '1rem' }}>{successMsg}</span>}
+          {successMsg && <span style={{ color: 'var(--success)', fontWeight: 600, marginRight: '1rem' }}>{t('success_save')}</span>}
 
-          <button onClick={handleCancel} className="btn btn-secondary" style={{ padding: '0.5rem', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Cancelar">
+          <button onClick={handleCancel} className="btn btn-secondary" style={{ padding: '0.5rem', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={t('cancel')}>
             <X size={18} />
           </button>
-          <button onClick={handleSave} className="btn btn-primary" style={{ padding: '0.5rem', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={loading} title="Guardar">
+          <button onClick={handleSave} className="btn btn-primary" style={{ padding: '0.5rem', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={loading} title={t('save')}>
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
           </button>
-          <button onClick={handleNext} className="btn btn-secondary" style={{ padding: '0.5rem', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={loading} title="Siguiente">
+          <button onClick={handleNext} className="btn btn-secondary" style={{ padding: '0.5rem', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} disabled={loading} title={t('next')}>
             <ArrowRight size={18} />
           </button>
         </div>
       </div>
 
       <div className="card glass">
+
         {/* A. Información General */}
-        <div className="form-section-title">A. Información General de la Cuenta</div>
+        <div className="form-section-title">{t('section_general')}</div>
         <div className="form-grid">
           <div>
-            <label>Cuenta *</label>
-            <input className={getInputClass('name')} value={formData.name} onChange={e => handleChange('name', e.target.value)} placeholder="Nombre legal o Razón Social" />
+            <label>{t('account')} *</label>
+            <input className={getInputClass('name')} value={formData.name} onChange={e => handleChange('name', e.target.value)} placeholder={t('account')} />
           </div>
           <div>
-            <label>Ramo *</label>
+            <label>{t('ramo')} *</label>
             <select className={getInputClass('ramo')} value={formData.ramo} onChange={e => handleChange('ramo', e.target.value)}>
-              <option value="">Selecciona...</option>
+              <option value="">{t('select')}</option>
               {Object.keys(RAMOS).map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
           <div>
-            <label>Subramo *</label>
+            <label>{t('subramo')} *</label>
             <select className={getInputClass('subramo')} value={formData.subramo} onChange={e => handleChange('subramo', e.target.value)} disabled={!formData.ramo}>
-              <option value="">Selecciona...</option>
+              <option value="">{t('select')}</option>
               {formData.ramo && (RAMOS as any)[formData.ramo]?.map((s: string) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
-            <label>Giro de Negocio *</label>
+            <label>{t('business_type')} *</label>
             <select className={getInputClass('giroNegocio')} value={formData.giroNegocio} onChange={e => handleChange('giroNegocio', e.target.value)}>
-              <option value="">Selecciona...</option>
+              <option value="">{t('select')}</option>
               <option value="Retail">Retail</option>
               <option value="Manufactura">Manufactura</option>
               <option value="Servicios">Servicios</option>
@@ -304,42 +304,42 @@ export default function NewAccount() {
             </select>
           </div>
           <div>
-            <label>Tipo de Experiencia *</label>
+            <label>{t('exp_type')} *</label>
             <select className={getInputClass('tipoExperiencia')} value={formData.tipoExperiencia} onChange={e => handleChange('tipoExperiencia', e.target.value)}>
-              <option value="">Selecciona...</option>
+              <option value="">{t('select')}</option>
               <option value="Nacional">Nacional</option>
               <option value="Internacional">Internacional</option>
             </select>
           </div>
           <div>
-            <label>Cuenta con Cuidado Integral</label>
+            <label>{t('integral_care')}</label>
             <select className="input" value={formData.cuidadoIntegral} onChange={e => handleChange('cuidadoIntegral', e.target.value)}>
-              <option value="">Selecciona...</option>
-              <option value="Si">Sí</option>
+              <option value="">{t('select')}</option>
+              <option value="Si">Si</option>
               <option value="No">No</option>
             </select>
           </div>
           <div>
-            <label>Etapa *</label>
+            <label>{t('stage')} *</label>
             <select className={getInputClass('etapa')} value={formData.etapa} onChange={e => handleChange('etapa', e.target.value)}>
               <option value="Creado">Creado</option>
             </select>
           </div>
           <div>
-            <label>Inicio Vigencia *</label>
+            <label>{t('start_date')} *</label>
             <input type="date" className={getInputClass('fechaInicioVigencia')} value={formData.fechaInicioVigencia} onChange={e => handleChange('fechaInicioVigencia', e.target.value)} />
           </div>
           <div>
-            <label>Prima Objetivo *</label>
+            <label>{t('target_premium')} *</label>
             <input type="number" className={getInputClass('primaObjetivo')} value={formData.primaObjetivo} onChange={e => handleChange('primaObjetivo', e.target.value)} placeholder="0.00" />
           </div>
         </div>
 
         {/* B. Datos del Agente */}
-        <div className="form-section-title">B. Datos del Agente</div>
+        <div className="form-section-title">{t('section_agent')}</div>
         <div className="form-grid">
           <div>
-            <label>Clave del Agente *</label>
+            <label>{t('agent_code')} *</label>
             <div style={{ position: 'relative' }}>
               <input
                 className={getInputClass('claveAgente')}
@@ -352,114 +352,102 @@ export default function NewAccount() {
             </div>
           </div>
           <div>
-            <label>Nombre del Agente</label>
+            <label>{t('agent_name')}</label>
             <input className="input" value={formData.nombreAgente} disabled />
           </div>
           <div>
-            <label>Promotor</label>
+            <label>{t('promoter')}</label>
             <input className="input" value={formData.promotor} disabled />
           </div>
           <div>
-            <label>Territorio</label>
+            <label>{t('territory')}</label>
             <input className="input" value={formData.territorio} disabled />
           </div>
           <div>
-            <label>Oficina</label>
+            <label>{t('office')}</label>
             <input className="input" value={formData.oficina} disabled />
           </div>
           <div>
-            <label>Canal</label>
+            <label>{t('channel')}</label>
             <input className="input" value={formData.canal} disabled />
           </div>
           <div>
-            <label>Centro de Costos</label>
+            <label>{t('cost_center')}</label>
             <input className="input" value={formData.centroCostos} disabled />
           </div>
         </div>
 
         {/* C. Producto y Suscripción */}
-        <div className="form-section-title">C. Configuración del Producto y Suscripción</div>
+        <div className="form-section-title">{t('section_product')}</div>
         <div className="form-grid">
           <div>
-            <label>Nuevo para el conducto *</label>
+            <label>{t('new_channel')} *</label>
             <select className={getInputClass('nuevoConducto')} value={formData.nuevoConducto} onChange={e => handleChange('nuevoConducto', e.target.value)}>
-              <option value="">Selecciona...</option>
-              <option value="Si">Sí</option>
+              <option value="">{t('select')}</option>
+              <option value="Si">Si</option>
               <option value="No">No</option>
             </select>
           </div>
           <div>
-            <label>Nearshoring *</label>
+            <label>{t('nearshoring')} *</label>
             <select className={getInputClass('nearshoring')} value={formData.nearshoring} onChange={e => handleChange('nearshoring', e.target.value)}>
-              <option value="">Selecciona...</option>
-              <option value="Si">Sí</option>
+              <option value="">{t('select')}</option>
+              <option value="Si">Si</option>
               <option value="No">No</option>
             </select>
           </div>
           <div>
-            <label>Cuenta con Planmed</label>
+            <label>{t('planmed')}</label>
             <select className="input" value={formData.cuentaConPlanmed} onChange={e => handleChange('cuentaConPlanmed', e.target.value)}>
-              <option value="">Selecciona...</option>
-              <option value="Si">Sí</option>
+              <option value="">{t('select')}</option>
+              <option value="Si">Si</option>
               <option value="No">No</option>
             </select>
           </div>
           <div>
-            <label>Plan</label>
+            <label>{t('plan')}</label>
             <input className="input" value={formData.plan} onChange={e => handleChange('plan', e.target.value)} />
           </div>
           <div>
-            <label>Prima Cotizada *</label>
+            <label>{t('quoted_premium')} *</label>
             <input type="number" className="input" value={formData.primaCotizada} onChange={e => handleChange('primaCotizada', e.target.value)} />
           </div>
           <div>
-            <label>Población / Incisos / Ubicaciones</label>
-            <input type="text" className="input" value={formData.poblacion} onChange={e => handleChange('poblacion', e.target.value)} placeholder="Cantidad..." />
+            <label>{t('population_incisos')}</label>
+            <input type="text" className="input" value={formData.poblacion} onChange={e => handleChange('poblacion', e.target.value)} placeholder="" />
           </div>
           <div>
-            <label>Instancia / Folio</label>
+            <label>{t('instance_folio')}</label>
             <input className="input" value={formData.instanciaFolio} onChange={e => handleChange('instanciaFolio', e.target.value)} />
           </div>
           <div>
-            <label>Responsable Suscripción</label>
+            <label>{t('underwriter')}</label>
             <select className="input" value={formData.responsableSuscripcion} onChange={e => handleChange('responsableSuscripcion', e.target.value)}>
-              <option value="">Selecciona...</option>
+              <option value="">{t('select')}</option>
               <option value="Juan Perez">Juan Perez</option>
               <option value="Maria Lopez">Maria Lopez</option>
             </select>
           </div>
           <div>
-            <label>Fecha Solicitud</label>
+            <label>{t('req_date')}</label>
             <input type="date" className="input" value={formData.fechaSolicitud} onChange={e => handleChange('fechaSolicitud', e.target.value)} />
           </div>
           <div>
-            <label>Fecha Entrega</label>
+            <label>{t('delivery_date')}</label>
             <input type="date" className="input" value={formData.fechaEntrega} onChange={e => handleChange('fechaEntrega', e.target.value)} />
           </div>
         </div>
 
         {/* D. Observaciones */}
-        <div className="form-section-title">D. Observaciones</div>
+        <div className="form-section-title">{t('section_observations')}</div>
         <div className="form-grid">
           <div className="col-span-4">
-            <label>Observaciones *</label>
+            <label>{t('observations')} *</label>
             <textarea className={getInputClass('observaciones')} value={formData.observaciones} onChange={e => handleChange('observaciones', e.target.value)} />
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem' }}>
-          <button onClick={handleCancel} className="btn btn-secondary" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>
-            <X size={18} /> Cancelar
-          </button>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <button onClick={handleSave} className="btn btn-primary" disabled={loading}>
-              {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Guardar
-            </button>
-            <button onClick={handleNext} className="btn btn-secondary" disabled={loading}>
-              Siguiente <ArrowRight size={18} />
-            </button>
-          </div>
-        </div>
+
       </div>
     </div>
   );
