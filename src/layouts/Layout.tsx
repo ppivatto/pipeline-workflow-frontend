@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Building, CheckSquare, Settings, LogOut, ChevronLeft, ChevronRight, Moon, Sun, Globe, User } from 'lucide-react';
+import { LayoutDashboard, Building, CheckSquare, Settings, LogOut, ChevronLeft, ChevronRight, Moon, Sun, Globe, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';

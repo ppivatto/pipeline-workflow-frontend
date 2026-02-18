@@ -8,7 +8,9 @@ export default function AccountsList() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { } = useLanguage();
+  // ... rest of component using t or just remove it if unused
+
 
   useEffect(() => {
     // Initial load

@@ -29,7 +29,7 @@ export default function Renovaciones() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [loading, setLoading] = useState(false);
-  const { t } = useLanguage();
+  const { } = useLanguage();
   const navigate = useNavigate();
 
   // Pagination

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../api/client';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
-import { Save, ArrowRight, Search, Loader2, X } from 'lucide-react';
+import { Save, ArrowRight, Loader2, X } from 'lucide-react';
 
 interface FormState {
   // General
@@ -77,7 +77,7 @@ export default function NewAccount() {
   const accountId = searchParams.get('id');
   const caseId = searchParams.get('caseId'); // Get caseId for editing
   const parentCaseId = searchParams.get('parentCaseId');
-  const { t } = useLanguage();
+  const { } = useLanguage();
 
   // Load account/case data if editing
   useEffect(() => {
@@ -217,7 +217,6 @@ export default function NewAccount() {
         }
         const caseRes = await api.post('/cases', {
           accountId: accId,
-          ramo: formData.ramo,
           parentCaseId,
           ...formData
         });
