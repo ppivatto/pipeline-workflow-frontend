@@ -1,0 +1,354 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import api from '../../api/client';
+import { ArrowLeft, Save, ArrowRight, Loader2 } from 'lucide-react';
+
+interface ReadOnlyData {
+  cuenta: string;
+  ramo: string;
+  fechaInicioVigencia: string;
+  primaObjetivo: string;
+}
+
+interface NegotiationState {
+  seQuedo: boolean;
+  poblacionAsegurada: string;
+  estatus: string;
+  primaAsegurados: string;
+  motivoNoGanado: string;
+  aseguradoraGanadora: string;
+  primaCompetencia: string;
+  cuidadoIntegralPoblacion: string;
+  cuidadoIntegralPrima: string;
+  observaciones: string;
+}
+
+const INITIAL_NEG: NegotiationState = {
+  seQuedo: false,
+  poblacionAsegurada: '',
+  estatus: '',
+  primaAsegurados: '',
+  motivoNoGanado: '',
+  aseguradoraGanadora: '',
+  primaCompetencia: '',
+  cuidadoIntegralPoblacion: '',
+  cuidadoIntegralPrima: '',
+  observaciones: ''
+};
+
+const MOTIVOS = [
+  'Precio',
+  'Cobertura insuficiente',
+  'Servicio',
+  'Relación con el agente',
+  'Condiciones contractuales',
+  'Otro'
+];
+
+const ASEGURADORAS = [
+  'GNP Seguros',
+  'Zurich',
+  'Chubb',
+  'Mapfre',
+  'HDI Seguros',
+  'Allianz',
+  'MetLife',
+  'Otro'
+];
+
+const ESTATUS_OPTIONS = [
+  { value: 'EN_NEGOCIACION', label: 'En negociación' },
+  { value: 'PROPUESTA_ENVIADA', label: 'Propuesta enviada' },
+  { value: 'PENDIENTE_RESPUESTA', label: 'Pendiente de respuesta' },
+  { value: 'GANADA', label: 'Ganada' },
+  { value: 'PERDIDA', label: 'Perdida' },
+];
+
+export default function Negotiation() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
+  const [readOnly, setReadOnly] = useState<ReadOnlyData>({
+    cuenta: '', ramo: '', fechaInicioVigencia: '', primaObjetivo: ''
+  });
+  const [form, setForm] = useState<NegotiationState>(INITIAL_NEG);
+  const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Load inherited data from the case/account
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await api.get(`/cases/${id}`);
+        const c = res.data;
+        setReadOnly({
+          cuenta: c.account?.name || c.name || '',
+          ramo: c.ramo || c.account?.ramo || '',
+          fechaInicioVigencia: c.fechaInicioVigencia || '',
+          primaObjetivo: c.primaObjetivo || ''
+        });
+        // If negotiation data already exists, pre-fill
+        if (c.negotiationData) {
+          setForm(prev => ({ ...prev, ...c.negotiationData }));
+        }
+      } catch {
+        // Mock fallback
+        setReadOnly({
+          cuenta: 'Walmart SA DE CV MEXICO',
+          ramo: 'GMM',
+          fechaInicioVigencia: '2026-01-01',
+          primaObjetivo: '1500000'
+        });
+      } finally {
+        setLoadingData(false);
+      }
+    };
+    fetchData();
+  }, [id]);
+
+  const handleChange = (field: keyof NegotiationState, value: string | boolean) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: false }));
+    }
+
+    // If "Se quedó" is checked, clear the loss-related fields
+    if (field === 'seQuedo' && value === true) {
+      setForm(prev => ({
+        ...prev,
+        seQuedo: true,
+        motivoNoGanado: '',
+        aseguradoraGanadora: '',
+        primaCompetencia: ''
+      }));
+    }
+  };
+
+  const validate = () => {
+    const newErrors: Record<string, boolean> = {};
+    if (!form.estatus) newErrors.estatus = true;
+    if (!form.observaciones) newErrors.observaciones = true;
+    if (!form.poblacionAsegurada) newErrors.poblacionAsegurada = true;
+
+    // If not won, validate loss fields
+    if (!form.seQuedo && (form.estatus === 'PERDIDA')) {
+      if (!form.motivoNoGanado) newErrors.motivoNoGanado = true;
+      if (!form.aseguradoraGanadora) newErrors.aseguradoraGanadora = true;
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSave = async () => {
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      await api.put(`/negotiation/${id}`, { ...form, advance: false });
+      setSuccessMsg('Negociación guardada correctamente');
+    } catch {
+      setSuccessMsg('Negociación guardada correctamente (Mock)');
+    } finally {
+      setLoading(false);
+      setTimeout(() => setSuccessMsg(''), 4000);
+    }
+  };
+
+  const handleNext = async () => {
+    if (!validate()) return;
+    setLoading(true);
+    try {
+      await api.put(`/negotiation/${id}`, { ...form, advance: true });
+      navigate(`/emission/${id}`);
+    } catch {
+      // Mock: advance anyway
+      navigate(`/emission/${id}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBack = () => {
+    navigate(`/accounts/new?id=${id}`);
+  };
+
+  const getInputClass = (field: string) => `input ${errors[field] ? 'input-error' : ''}`;
+
+  const showLossFields = !form.seQuedo && (form.estatus === 'PERDIDA' || form.estatus === '');
+
+  if (loadingData) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--primary)' }} />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ paddingBottom: '4rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+        <h1 style={{ margin: 0, color: 'var(--text-main)' }}>
+          <span style={{ color: 'var(--primary)' }}>Negociación</span>
+        </h1>
+        {successMsg && <span style={{ color: 'var(--success)', fontWeight: 600 }}>{successMsg}</span>}
+      </div>
+
+      <div className="card glass">
+        {/* Inherited Read-Only Data */}
+        {/* Inherited Read-Only Data */}
+        <div className="form-grid" style={{ marginBottom: '2rem' }}>
+          <div className="col-span-4">
+            <label>Cuenta</label>
+            <input className="input" value={readOnly.cuenta} disabled />
+          </div>
+          <div>
+            <label>Ramo</label>
+            <input className="input" value={readOnly.ramo} disabled />
+          </div>
+          <div>
+            <label>Fecha de Inicio de vigencia</label>
+            <input type="text" className="input" value={readOnly.fechaInicioVigencia} disabled />
+          </div>
+          <div>
+            <label>Prima objetivo</label>
+            <input className="input" value={readOnly.primaObjetivo ? `$${Number(readOnly.primaObjetivo).toLocaleString()}` : ''} disabled />
+          </div>
+        </div>
+
+        {/* Negotiation Capture */}
+        <div className="form-section-title">Captura de Negociación</div>
+        <div className="form-grid">
+          <div className="col-span-4" style={{ marginBottom: '0.5rem' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.seQuedo}
+                onChange={e => handleChange('seQuedo', e.target.checked)}
+                style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
+              />
+              ¿Se quedó?
+            </label>
+          </div>
+          <div>
+            <label>Población Asegurada *</label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              className={getInputClass('poblacionAsegurada')}
+              value={form.poblacionAsegurada}
+              onChange={e => handleChange('poblacionAsegurada', e.target.value)}
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label>Estatus *</label>
+            <select className={getInputClass('estatus')} value={form.estatus} onChange={e => handleChange('estatus', e.target.value)}>
+              <option value="">Selecciona...</option>
+              {ESTATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label>Prima Asegurados</label>
+            <input
+              type="number"
+              className="input"
+              value={form.primaAsegurados}
+              onChange={e => handleChange('primaAsegurados', e.target.value)}
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+
+        {/* Conditional Loss Fields */}
+        {showLossFields && (
+          <>
+            <div className="form-section-title">Datos de Pérdida</div>
+            <div className="form-grid">
+              <div>
+                <label>Motivo de no ganado {form.estatus === 'PERDIDA' ? '*' : ''}</label>
+                <select className={getInputClass('motivoNoGanado')} value={form.motivoNoGanado} onChange={e => handleChange('motivoNoGanado', e.target.value)}>
+                  <option value="">Selecciona...</option>
+                  {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label>Aseguradora ganadora {form.estatus === 'PERDIDA' ? '*' : ''}</label>
+                <select className={getInputClass('aseguradoraGanadora')} value={form.aseguradoraGanadora} onChange={e => handleChange('aseguradoraGanadora', e.target.value)}>
+                  <option value="">Selecciona...</option>
+                  {ASEGURADORAS.map(a => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+              <div>
+                <label>Prima ofertada por la competencia</label>
+                <input
+                  type="number"
+                  className="input"
+                  value={form.primaCompetencia}
+                  onChange={e => handleChange('primaCompetencia', e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Cuidado Integral */}
+        <div className="form-section-title">Cuidado Integral</div>
+        <div className="form-grid">
+          <div className="col-span-2">
+            <label>Población</label>
+            <input
+              type="number"
+              className="input"
+              value={form.cuidadoIntegralPoblacion}
+              onChange={e => handleChange('cuidadoIntegralPoblacion', e.target.value)}
+              placeholder="0"
+            />
+          </div>
+          <div className="col-span-2">
+            <label>Prima</label>
+            <input
+              type="number"
+              className="input"
+              value={form.cuidadoIntegralPrima}
+              onChange={e => handleChange('cuidadoIntegralPrima', e.target.value)}
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+
+        {/* Observaciones */}
+        <div className="form-section-title">Observaciones</div>
+        <div className="form-grid">
+          <div className="col-span-4">
+            <label>Observaciones *</label>
+            <textarea
+              className={getInputClass('observaciones')}
+              value={form.observaciones}
+              onChange={e => handleChange('observaciones', e.target.value)}
+              placeholder="Escribe tu texto aquí..."
+            />
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem' }}>
+          <button onClick={handleBack} className="btn btn-secondary">
+            <ArrowLeft size={18} /> Anterior
+          </button>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button onClick={handleSave} className="btn btn-primary" disabled={loading}>
+              {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Guardar
+            </button>
+            <button onClick={handleNext} className="btn btn-secondary" disabled={loading}>
+              Siguiente <ArrowRight size={18} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
