@@ -22,8 +22,15 @@ export default function Login() {
       localStorage.setItem('token', res.data.access_token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/dashboard');
-    } catch (err) {
-      alert('Invalid credentials');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      if (err.response?.status === 401) {
+        alert('Invalid credentials');
+      } else if (err.response?.status === 404) {
+        alert('Backend endpoint not found (404). Please check VITE_API_URL configuration.');
+      } else {
+        alert('Connection error. Please try again later.');
+      }
     } finally {
       setLoading(false);
     }
