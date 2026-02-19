@@ -79,7 +79,7 @@ export default function NewAccount() {
   const parentCaseId = searchParams.get('parentCaseId');
   const { t } = useLanguage();
 
-  // Load account/case data if editing
+  // Load account/case data if editing or renewal
   useEffect(() => {
     if (caseId) {
       setLoading(true);
@@ -89,11 +89,30 @@ export default function NewAccount() {
           setCreatedCaseId(c.id);
           setFormData(prev => ({
             ...prev,
-            ...c, // Spread case data (includes JSON data merged by backend)
+            ...c, // Spread case data
             name: c.account?.name || c.name || '',
           }));
         })
         .catch(err => console.error("Error loading case", err))
+        .finally(() => setLoading(false));
+    } else if (parentCaseId) {
+      // Renewal: Load parent case data but treating as new entry
+      setLoading(true);
+      api.get(`/cases/${parentCaseId}`)
+        .then(res => {
+          const c = res.data;
+          // Exclude system fields from spread to avoid accidental overwrites or dirty data
+          const { id, refnum, status, workflowStep, createdAt, updatedAt, ...rest } = c;
+          setFormData(prev => ({
+            ...prev,
+            ...rest,
+            name: c.account?.name || c.name || '',
+            etapa: 'Creado', // Reset status
+            observaciones: `Renovación: ${c.refnum} - ${c.data?.observaciones || ''}`.substring(0, 500),
+            // We could auto-increment dates here if we had logic, for now keep same
+          }));
+        })
+        .catch(err => console.error("Error loading parent case", err))
         .finally(() => setLoading(false));
     } else if (accountId) {
       // Fetch account logic
@@ -101,7 +120,7 @@ export default function NewAccount() {
         setFormData(prev => ({ ...prev, name: res.data.name }));
       });
     }
-  }, [accountId, caseId]);
+  }, [accountId, caseId, parentCaseId]);
 
   const handleChange = (field: keyof FormState, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -161,78 +180,53 @@ export default function NewAccount() {
       let currentCaseId = createdCaseId || caseId;
 
       if (currentCaseId) {
-        // Update
-        await api.put(`/cases/${currentCaseId}`, {
-          ...formData,
-          accountId: accountId || 999
-        });
+        // Update existing case
+        await api.put(`/cases/${currentCaseId}`, { ...formData, accountId });
         setSuccessMsg(`Caso actualizado correctamente`);
-      } else {
-        // Create Account if needed
-        let accId = accountId;
-        if (!accId) {
-          const accountRes = await api.post('/accounts', {
-            name: formData.name,
-            identifier: 'TEMP-' + Date.now()
-          });
-          accId = accountRes.data.id;
-        }
-
-        // Create Case
-        const caseRes = await api.post('/cases', {
-          ...formData,
-          accountId: accId,
-          parentCaseId
-        });
-        currentCaseId = caseRes.data.id;
-        setCreatedCaseId(currentCaseId);
+      } else if (!accountId) {
+        // Create NEW Account AND Case (Transaction in backend)
+        const res = await api.post('/accounts', { ...formData, parentCaseId });
+        setCreatedCaseId(res.data.case.id);
         setSuccessMsg(`Cuenta y Caso creados correctamente`);
+        // Update URL to prevent double creation
+        navigate(`/accounts/new?id=${res.data.account.id}&caseId=${res.data.case.id}`, { replace: true });
+      } else {
+        // Create NEW Case for EXISTING Account
+        const res = await api.post('/cases', { ...formData, accountId, parentCaseId });
+        setCreatedCaseId(res.data.id);
+        setSuccessMsg(`Nuevo Caso creado correctamente`);
+        navigate(`/accounts/new?id=${accountId}&caseId=${res.data.id}`, { replace: true });
       }
-
     } catch (error) {
       console.error(error);
-      // Fallback for mock environment
-      setSuccessMsg(`Cuenta ${formData.name} y Caso 1001 creados correctamente (Mock)`);
-      setCreatedCaseId('1001');
+      setSuccessMsg(`Error al guardar`);
     } finally {
       setLoading(false);
+      setTimeout(() => setSuccessMsg(''), 3000);
     }
   };
 
   const handleNext = async () => {
-
-
     if (!validate()) return;
     setLoading(true);
     try {
       let currentCaseId = createdCaseId || caseId;
 
       if (!currentCaseId) {
-        // Create logic similar to handleSave but then navigate
-        // Reuse handleSave logic or duplicate slightly for simplicity
-        let accId = accountId;
-        if (!accId) {
-          const accountRes = await api.post('/accounts', { name: formData.name, identifier: 'TEMP-' + Date.now() });
-          accId = accountRes.data.id;
+        if (!accountId) {
+          const res = await api.post('/accounts', { ...formData, parentCaseId });
+          currentCaseId = res.data.case.id;
+        } else {
+          const res = await api.post('/cases', { ...formData, accountId, parentCaseId });
+          currentCaseId = res.data.id;
         }
-        const caseRes = await api.post('/cases', {
-          accountId: accId,
-          parentCaseId,
-          ...formData
-        });
-        currentCaseId = caseRes.data.id;
       } else {
-        // Update before next
-        await api.put(`/cases/${currentCaseId}`, { accountId, ...formData });
+        await api.put(`/cases/${currentCaseId}`, { ...formData, accountId });
       }
 
-      setCreatedCaseId(currentCaseId);
       navigate(`/negotiation/${currentCaseId}`);
-
     } catch (error) {
       console.error(error);
-      setCreatedCaseId('1001');
-      navigate('/negotiation/1001');
     } finally {
       setLoading(false);
     }

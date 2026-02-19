@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Building, CheckSquare, Settings, LogOut, ChevronLeft, ChevronRight, Moon, Sun, Globe, User } from 'lucide-react';
+import { LayoutDashboard, Building, LogOut, ChevronLeft, ChevronRight, Moon, Sun, Globe, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -42,16 +42,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0 1rem', flex: 1 }}>
-          <MenuItem to="/accounts" icon={<LayoutDashboard size={20} />} label="Cuentas" collapsed={collapsed} active={isActive('/accounts')} />
+          <MenuItem to="/accounts" icon={<LayoutDashboard size={20} />} label={t('menu_cuentas')} collapsed={collapsed} active={isActive('/accounts')} />
           {/* <MenuItem to="/accounts/new" icon={<Users size={20} />} label={t('menu_alta')} collapsed={collapsed} active={isActive('/accounts/new')} />Removed as per request, button inside Cuentas now */}
           <MenuItem to="/renovaciones" icon={<Building size={20} />} label={t('menu_renovaciones')} collapsed={collapsed} active={isActive('/renovaciones')} />
-          {/* Placeholders for visuals */}
-          <MenuItem to="#" icon={<CheckSquare size={20} />} label="Tareas" collapsed={collapsed} active={false} />
 
-          <div style={{ marginTop: '2rem' }}>
+          {/* <div style={{ marginTop: '2rem' }}>
             {!collapsed && <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem', paddingLeft: '0.5rem' }}>ADMIN</p>}
             <MenuItem to="#" icon={<Settings size={20} />} label="Equipo" collapsed={collapsed} active={false} />
-          </div>
+          </div> */}
         </nav>
 
         <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -125,22 +123,13 @@ function MenuItem({ to, icon, label, collapsed, active }: any) {
   return (
     <Link
       to={to}
+      className={`menu-item ${active ? 'active' : ''}`}
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem',
-        padding: '0.75rem 1rem',
-        borderRadius: '8px',
-        textDecoration: 'none',
-        color: active ? 'white' : 'var(--text-muted)',
-        background: active ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-        justifyContent: collapsed ? 'center' : 'flex-start',
-        borderLeft: active ? '3px solid #3b82f6' : '3px solid transparent',
-        transition: 'all 0.2s'
+        justifyContent: collapsed ? 'center' : 'flex-start'
       }}
     >
-      <div style={{ color: active ? '#3b82f6' : 'inherit' }}>{icon}</div>
-      {!collapsed && <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{label}</span>}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
+      {!collapsed && <span>{label}</span>}
     </Link>
   );
 }

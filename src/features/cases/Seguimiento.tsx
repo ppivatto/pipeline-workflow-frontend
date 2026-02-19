@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import api from '../../api/client';
 import { ArrowLeft, Loader2, Plus } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
@@ -22,32 +23,36 @@ export default function Seguimiento() {
   const { accountId } = useParams();
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const [cases, setCases] = useState<Case[]>([]);
-  const [loading, setLoading] = useState(true);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  const [accountName, setAccountName] = useState('');
-  const [searchTerm, setSearchTerm] = useState(''); // New search term state
+  const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    // ... (fetch logic same as before)
-    const fetchCases = async () => {
+  const { data: accountName = '...' } = useQuery({
+    queryKey: ['account', accountId],
+    queryFn: async () => {
       try {
-        api.get(`/accounts/${accountId}`).then(res => setAccountName(res.data.name)).catch(() => setAccountName('Cuenta Desconocida'));
-        const res = await api.get(`/cases?accountId=${accountId}`);
-        let data = res.data;
-        data = data.filter((c: Case) => !['CERRADO', 'TERMINADO', 'CANCELADO'].includes(c.status));
-        data.sort((a: Case, b: Case) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-        setCases(data);
-      } catch (error) {
-        console.error("Error fetching cases", error);
-        setCases([]);
-      } finally {
-        setLoading(false);
+        const res = await api.get(`/accounts/${accountId}`);
+        return res.data.name;
+      } catch {
+        return 'Cuenta Desconocida';
       }
-    };
-    if (accountId) fetchCases();
-  }, [accountId]);
+    },
+    enabled: !!accountId
+  });
+
+  const { data: cases = [], isLoading: loadingCases } = useQuery({
+    queryKey: ['cases', accountId],
+    queryFn: async () => {
+      const res = await api.get(`/cases?accountId=${accountId}`);
+      return res.data;
+    },
+    select: (data) => {
+      return data
+        .filter((c: Case) => !['CERRADO', 'TERMINADO', 'CANCELADO'].includes(c.status))
+        .sort((a: Case, b: Case) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    },
+    enabled: !!accountId
+  });
 
   const handleRowClick = (c: Case) => {
     switch (c.workflowStep) {
@@ -65,8 +70,7 @@ export default function Seguimiento() {
     }
   };
 
-  // Pagination Logic
-  const filteredCases = cases.filter(c =>
+  const filteredCases = (cases as Case[]).filter(c =>
     c.refnum.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.ramo.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -76,7 +80,7 @@ export default function Seguimiento() {
   const currentCases = filteredCases.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredCases.length / itemsPerPage);
 
-  if (loading) {
+  if (loadingCases) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
         <Loader2 size={32} className="animate-spin" style={{ color: 'var(--primary)' }} />
@@ -92,7 +96,7 @@ export default function Seguimiento() {
             {t('header_tracking')}
           </h1>
           <p style={{ margin: '0.5rem 0 0', color: 'var(--text-muted)' }}>
-            {t('active_cases_for')} <strong style={{ color: 'var(--text-main)' }}>{accountName}</strong>
+            {t('active_cases_for')} <strong style={{ color: 'var(--text-main)' }}>{accountName as string}</strong>
           </p>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>

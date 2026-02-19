@@ -87,7 +87,7 @@ export default function Emission() {
 
   const validate = () => {
     const newErrors: Record<string, boolean> = {};
-    if (!form.observaciones) newErrors.observaciones = true;
+    // if (!form.observaciones) newErrors.observaciones = true;
 
     // Add validation for other fields if strictly required, but requirements emphasize Observaciones for finishing.
     // Let's add basic checks for dates if they are provided
