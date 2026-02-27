@@ -51,13 +51,23 @@ const INITIAL_STATE: FormState = {
   observaciones: ''
 };
 
-// Mock Data
-const RAMOS = {
-  'Autos': ['Flotillas', 'Individual', 'Camiones'],
-  'Daños': ['Incendio', 'Terremoto', 'Hidrometeorológico'],
-  'Vida': ['Grupo', 'Individual'],
-  'GMM': ['Colectivo', 'Individual']
-};
+const RAMOS = ['Autos', 'Daños', 'Salud', 'Vida'];
+
+const SUBRAMOS = [
+  'Múltiple Empresarial (MEM)',
+  'L. Com Transportes',
+  'L. Com Responsabilidad Civil',
+  'L. Com Ramos Técnicos',
+  'L. Est. Transportes',
+  'L. Est. Responsabilidad Civil',
+  'L. Est Ramos Técnicos',
+  'Obras de Arte',
+  'Aviación',
+  'Financieras & Cyber',
+  'Property',
+  'Parámetro',
+  'Otro',
+];
 
 const AGENTS_MOCK: Record<string, any> = {
   '26601': { nombre: 'JUAN PEREZ', promotor: 'PROMOTORIA NORTE', territorio: 'NORTE', oficina: 'MONTERREY', canal: 'AGENTE', centroCostos: 'CC-001' },
@@ -71,6 +81,7 @@ export default function NewAccount() {
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [successMsg, setSuccessMsg] = useState('');
   const [createdCaseId, setCreatedCaseId] = useState<string | null>(null);
+  const [duplicateError, setDuplicateError] = useState('');
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -86,11 +97,24 @@ export default function NewAccount() {
       api.get(`/cases/${caseId}`)
         .then(res => {
           const c = res.data;
-          setCreatedCaseId(c.id);
+          // Exclude system/relation fields — only keep user-entered form data.
+          // The backend merges c.data (JSON column) into the top-level response via findOne,
+          // so all form fields (subramo, tipoExperiencia, etc.) are already at top level.
+          const {
+            id, refnum, status, workflowStep,
+            accountId: _accountId, createdAt, updatedAt, lastModified,
+            assignedTo, parentCaseId: _parentCaseId,
+            account, negotiationData, emissionData,
+            data: rawData,
+            ...rest
+          } = c;
+
+          setCreatedCaseId(id);
           setFormData(prev => ({
             ...prev,
-            ...c, // Spread case data
-            name: c.account?.name || c.name || '',
+            ...(rawData && typeof rawData === 'object' ? rawData : {}), // persisted JSON form fields
+            ...rest,                                                      // top-level columns (ramo, etc.)
+            name: account?.name || rest.name || '',
           }));
         })
         .catch(err => console.error("Error loading case", err))
@@ -115,10 +139,44 @@ export default function NewAccount() {
         .catch(err => console.error("Error loading parent case", err))
         .finally(() => setLoading(false));
     } else if (accountId) {
-      // Fetch account logic
-      api.get(`/accounts/${accountId}`).then(res => {
-        setFormData(prev => ({ ...prev, name: res.data.name }));
-      });
+      // Load the most recent ALTA case for this account so the form is pre-filled
+      setLoading(true);
+      api.get(`/cases?accountId=${accountId}`)
+        .then(res => {
+          const allCases: any[] = res.data || [];
+          // Prefer the most recent ALTA case; fall back to any active case
+          const latest = allCases
+            .filter((c: any) => !['CANCELADO', 'RECHAZADO', 'TERMINADO'].includes(c.status))
+            .sort((a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+
+          if (latest) {
+            return api.get(`/cases/${latest.id}`).then(cRes => {
+              const c = cRes.data;
+              const {
+                id, refnum, status, workflowStep,
+                accountId: _aId, createdAt, updatedAt, lastModified,
+                assignedTo, parentCaseId: _pId,
+                account, negotiationData, emissionData,
+                data: rawData,
+                ...rest
+              } = c;
+              setCreatedCaseId(id);
+              setFormData(prev => ({
+                ...prev,
+                ...(rawData && typeof rawData === 'object' ? rawData : {}),
+                ...rest,
+                name: account?.name || rest.name || '',
+              }));
+            });
+          } else {
+            // No cases yet — just load the account name
+            return api.get(`/accounts/${accountId}`).then(res => {
+              setFormData(prev => ({ ...prev, name: res.data.name }));
+            });
+          }
+        })
+        .catch(err => console.error('Error loading account cases', err))
+        .finally(() => setLoading(false));
     }
   }, [accountId, caseId, parentCaseId]);
 
@@ -127,10 +185,28 @@ export default function NewAccount() {
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: false }));
     }
+    if (field === 'name') {
+      setDuplicateError('');
+    }
 
     // Logic for dependent dropdowns
     if (field === 'ramo') {
       setFormData(prev => ({ ...prev, ramo: value, subramo: '' }));
+    }
+  };
+
+  const checkDuplicateAccount = async () => {
+    // Only check when creating a new account (no accountId/caseId)
+    if (accountId || caseId || !formData.name.trim()) return;
+    try {
+      const res = await api.get(`/accounts/check-duplicate?name=${encodeURIComponent(formData.name.trim())}`);
+      if (res.data.exists) {
+        setDuplicateError(`Cuenta "${formData.name}" ya existe. No se puede crear una cuenta duplicada.`);
+      } else {
+        setDuplicateError('');
+      }
+    } catch {
+      // If endpoint fails, don't block
     }
   };
 
@@ -175,6 +251,10 @@ export default function NewAccount() {
 
   const handleSave = async () => {
     if (!validate()) return;
+    if (duplicateError) {
+      alert(duplicateError);
+      return;
+    }
     setLoading(true);
     try {
       let currentCaseId = createdCaseId || caseId;
@@ -184,17 +264,27 @@ export default function NewAccount() {
         await api.put(`/cases/${currentCaseId}`, { ...formData, accountId });
         setSuccessMsg(`Caso actualizado correctamente`);
       } else if (!accountId) {
+        // Double-check duplicate before creating
+        const dupCheck = await api.get(`/accounts/check-duplicate?name=${encodeURIComponent(formData.name.trim())}`);
+        if (dupCheck.data.exists) {
+          setDuplicateError(`Cuenta "${formData.name}" ya existe. No se puede crear una cuenta duplicada.`);
+          alert(`Cuenta "${formData.name}" ya existe. No se puede crear una cuenta duplicada.`);
+          setLoading(false);
+          return;
+        }
         // Create NEW Account AND Case (Transaction in backend)
         const res = await api.post('/accounts', { ...formData, parentCaseId });
         setCreatedCaseId(res.data.case.id);
-        setSuccessMsg(`Cuenta y Caso creados correctamente`);
+        const folio = res.data.case.refnum || res.data.case.id;
+        setSuccessMsg(`✅ Proceso exitoso — Folio: ${folio}`);
         // Update URL to prevent double creation
         navigate(`/accounts/new?id=${res.data.account.id}&caseId=${res.data.case.id}`, { replace: true });
       } else {
         // Create NEW Case for EXISTING Account
         const res = await api.post('/cases', { ...formData, accountId, parentCaseId });
         setCreatedCaseId(res.data.id);
-        setSuccessMsg(`Nuevo Caso creado correctamente`);
+        const folio = res.data.refnum || res.data.id;
+        setSuccessMsg(`✅ Proceso exitoso — Folio: ${folio}`);
         navigate(`/accounts/new?id=${accountId}&caseId=${res.data.id}`, { replace: true });
       }
     } catch (error) {
@@ -202,7 +292,7 @@ export default function NewAccount() {
       setSuccessMsg(`Error al guardar`);
     } finally {
       setLoading(false);
-      setTimeout(() => setSuccessMsg(''), 3000);
+      setTimeout(() => setSuccessMsg(''), 6000);
     }
   };
 
@@ -250,7 +340,7 @@ export default function NewAccount() {
         </h1>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          {successMsg && <span style={{ color: 'var(--success)', fontWeight: 600, marginRight: '1rem' }}>{t('success_save')}</span>}
+          {successMsg && <span style={{ color: successMsg.includes('Error') ? '#ef4444' : 'var(--success)', fontWeight: 600, marginRight: '1rem', fontSize: '0.85rem' }}>{successMsg}</span>}
 
           <button onClick={handleCancel} className="btn btn-secondary" style={{ padding: '0.5rem', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title={t('cancel')}>
             <X size={18} />
@@ -271,20 +361,21 @@ export default function NewAccount() {
         <div className="form-grid">
           <div>
             <label>{t('account')} *</label>
-            <input className={getInputClass('name')} value={formData.name} onChange={e => handleChange('name', e.target.value)} placeholder={t('account')} />
+            <input className={getInputClass('name')} value={formData.name} onChange={e => handleChange('name', e.target.value)} onBlur={checkDuplicateAccount} placeholder={t('account')} />
+            {duplicateError && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', fontWeight: 600 }}>⚠️ {duplicateError}</p>}
           </div>
           <div>
             <label>{t('ramo')} *</label>
             <select className={getInputClass('ramo')} value={formData.ramo} onChange={e => handleChange('ramo', e.target.value)}>
               <option value="">{t('select')}</option>
-              {Object.keys(RAMOS).map(r => <option key={r} value={r}>{r}</option>)}
+              {RAMOS.map(r => <option key={r} value={r}>{r}</option>)}
             </select>
           </div>
           <div>
             <label>{t('subramo')} *</label>
             <select className={getInputClass('subramo')} value={formData.subramo} onChange={e => handleChange('subramo', e.target.value)} disabled={!formData.ramo}>
               <option value="">{t('select')}</option>
-              {formData.ramo && (RAMOS as any)[formData.ramo]?.map((s: string) => <option key={s} value={s}>{s}</option>)}
+              {SUBRAMOS.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
@@ -301,8 +392,8 @@ export default function NewAccount() {
             <label>{t('exp_type')} *</label>
             <select className={getInputClass('tipoExperiencia')} value={formData.tipoExperiencia} onChange={e => handleChange('tipoExperiencia', e.target.value)}>
               <option value="">{t('select')}</option>
-              <option value="Nacional">Nacional</option>
-              <option value="Internacional">Internacional</option>
+              <option value="Propia">Propia</option>
+              <option value="Global">Global</option>
             </select>
           </div>
           <div>
@@ -314,9 +405,28 @@ export default function NewAccount() {
             </select>
           </div>
           <div>
+            <label>{t('planmed')}</label>
+            <select className="input" value={formData.cuentaConPlanmed} onChange={e => handleChange('cuentaConPlanmed', e.target.value)}>
+              <option value="">{t('select')}</option>
+              <option value="Planmed Hibrido">Planmed Híbrido</option>
+              <option value="Planmed Estandar">Planmed Estándar</option>
+              <option value="Planmed Esencial">Planmed Esencial</option>
+              <option value="Planmed Optimo">Planmed Óptimo</option>
+            </select>
+          </div>
+          <div>
+            <label>{t('plan')}</label>
+            <select className="input" value={formData.plan} onChange={e => handleChange('plan', e.target.value)}>
+              <option value="">{t('select')}</option>
+              <option value="Cuidado Integral Salud">Cuidado Integral Salud</option>
+              <option value="Cuidado Integral Plus">Cuidado Integral Plus</option>
+            </select>
+          </div>
+          <div>
             <label>{t('stage')} *</label>
             <select className={getInputClass('etapa')} value={formData.etapa} onChange={e => handleChange('etapa', e.target.value)}>
               <option value="Creado">Creado</option>
+              <option value="Prospección">Prospección</option>
             </select>
           </div>
           <div>
@@ -390,18 +500,7 @@ export default function NewAccount() {
               <option value="No">No</option>
             </select>
           </div>
-          <div>
-            <label>{t('planmed')}</label>
-            <select className="input" value={formData.cuentaConPlanmed} onChange={e => handleChange('cuentaConPlanmed', e.target.value)}>
-              <option value="">{t('select')}</option>
-              <option value="Si">Si</option>
-              <option value="No">No</option>
-            </select>
-          </div>
-          <div>
-            <label>{t('plan')}</label>
-            <input className="input" value={formData.plan} onChange={e => handleChange('plan', e.target.value)} />
-          </div>
+
           <div>
             <label>{t('quoted_premium')} *</label>
             <input type="number" className="input" value={formData.primaCotizada} onChange={e => handleChange('primaCotizada', e.target.value)} />

@@ -1,39 +1,51 @@
 import React from 'react';
+import { useTheme } from '../context/ThemeContext';
 
 interface LogoProps {
   size?: number;
 }
 
-export const Logo: React.FC<LogoProps> = ({ size = 32 }) => {
+/**
+ * AXA Logo component.
+ * Renders the official AXA logo with the red diagonal line.
+ * Automatically switches between dark-bg (white text) and light-bg (blue text) variants.
+ */
+export const Logo: React.FC<LogoProps> = ({ size = 40 }) => {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  // AXA brand colors
+  const bgColor = isDark ? '#00008f' : '#ffffff';
+  const textColor = isDark ? '#ffffff' : '#00008f';
+  const borderColor = isDark ? 'transparent' : '#00008f';
+
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 40 40"
-      fill="none"
+      viewBox="0 0 100 100"
       xmlns="http://www.w3.org/2000/svg"
       style={{ flexShrink: 0 }}
     >
-      <circle cx="20" cy="4" r="2.3" fill="rgb(37,99,235)" />
-      <circle cx="24.94" cy="4.78" r="1.5" fill="rgb(37,104,228)" />
-      <circle cx="29.40" cy="7.05" r="1.5" fill="rgb(37,109,220)" />
-      <circle cx="32.94" cy="10.59" r="2.3" fill="rgb(37,114,213)" />
-      <circle cx="35.21" cy="15.05" r="1.5" fill="rgb(36,120,205)" />
-      <circle cx="36" cy="20" r="1.5" fill="rgb(36,125,198)" />
-      <circle cx="35.21" cy="24.94" r="2.3" fill="rgb(36,130,190)" />
-      <circle cx="32.94" cy="29.40" r="1.5" fill="rgb(36,135,183)" />
-      <circle cx="29.40" cy="32.94" r="1.5" fill="rgb(36,140,176)" />
-      <circle cx="24.94" cy="35.21" r="2.3" fill="rgb(36,145,168)" />
-      <circle cx="20" cy="36" r="1.5" fill="rgb(35,151,161)" />
-      <circle cx="15.05" cy="35.21" r="1.5" fill="rgb(35,156,153)" />
-      <circle cx="10.59" cy="32.94" r="2.3" fill="rgb(35,161,146)" />
-      <circle cx="7.05" cy="29.40" r="1.5" fill="rgb(35,166,139)" />
-      <circle cx="4.78" cy="24.94" r="1.5" fill="rgb(35,171,131)" />
-      <circle cx="4" cy="20" r="2.3" fill="rgb(35,176,124)" />
-      <circle cx="4.78" cy="15.05" r="1.5" fill="rgb(34,182,116)" />
-      <circle cx="7.05" cy="10.59" r="1.5" fill="rgb(34,187,109)" />
-      <circle cx="10.59" cy="7.05" r="2.3" fill="rgb(34,192,101)" />
-      <circle cx="15.05" cy="4.78" r="1.5" fill="rgb(34,197,94)" />
+      {/* Background */}
+      <rect x="2" y="2" width="96" height="96" fill={bgColor} stroke={borderColor} strokeWidth="3" rx="4" />
+
+      {/* Red diagonal line */}
+      <line x1="58" y1="2" x2="88" y2="82" stroke="#ff1721" strokeWidth="8" strokeLinecap="round" />
+
+      {/* AXA text */}
+      <text
+        x="50"
+        y="82"
+        textAnchor="middle"
+        fontFamily="Arial Black, Arial, sans-serif"
+        fontWeight="900"
+        fontSize="42"
+        fill={textColor}
+        letterSpacing="-2"
+      >
+        AXA
+      </text>
     </svg>
   );
 };

@@ -43,7 +43,7 @@ export default function Seguimiento() {
   const { data: cases = [], isLoading: loadingCases } = useQuery({
     queryKey: ['cases', accountId],
     queryFn: async () => {
-      const res = await api.get(`/cases?accountId=${accountId}`);
+      const res = await api.get(`/cases?accountId=${accountId}&status=ACTIVO`);
       return res.data;
     },
     select: (data) => {

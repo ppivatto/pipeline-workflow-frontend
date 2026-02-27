@@ -17,8 +17,6 @@ interface EmissionState {
   numPolizas: string;
   poliza: string;
   poblacionEmitida: string;
-  cuidadoIntegralPoblacion?: string;
-  cuidadoIntegralPrima?: string;
   observaciones: string;
 }
 
@@ -28,8 +26,6 @@ const INITIAL_EMISSION: EmissionState = {
   numPolizas: '',
   poliza: '',
   poblacionEmitida: '',
-  cuidadoIntegralPoblacion: '',
-  cuidadoIntegralPrima: '',
   observaciones: ''
 };
 
@@ -53,15 +49,33 @@ export default function Emission() {
       try {
         const res = await api.get(`/cases/${id}`);
         const c = res.data;
+
+        const toDateStr = (val: any) => {
+          if (!val) return '';
+          const s = String(val);
+          if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+          return s.substring(0, 10);
+        };
+
         setReadOnly({
           cuenta: c.account?.name || c.name || '',
           ramo: c.ramo || c.account?.ramo || '',
-          fechaInicioVigencia: c.fechaInicioVigencia || '',
-          primaObjetivo: c.primaObjetivo || ''
+          fechaInicioVigencia: toDateStr(c.fechaInicioVigencia),
+          primaObjetivo: String(c.primaObjetivo || ''),
         });
-        // If emission data already exists, pre-fill
+
+        // If emission data already exists, pre-fill (coerce numbers → strings)
         if (c.emissionData) {
-          setForm(prev => ({ ...prev, ...c.emissionData }));
+          const ed = c.emissionData;
+          setForm(prev => ({
+            ...prev,
+            fechaIngresoFolio: toDateStr(ed.fechaIngresoFolio),
+            fechaEmision: toDateStr(ed.fechaEmision),
+            numPolizas: ed.numPolizas != null ? String(ed.numPolizas) : prev.numPolizas,
+            poliza: ed.poliza || prev.poliza,
+            poblacionEmitida: ed.poblacionEmitida != null ? String(ed.poblacionEmitida) : prev.poblacionEmitida,
+            observaciones: ed.observaciones || prev.observaciones,
+          }));
         }
       } catch {
         // Mock fallback
@@ -171,8 +185,8 @@ export default function Emission() {
             <input className="input" value={readOnly.ramo} disabled />
           </div>
           <div>
-            <label>{t('start_date')}</label>
-            <input type="text" className="input" value={readOnly.fechaInicioVigencia} disabled />
+            <label>Fecha de Inicio de Vigencia</label>
+            <input type="date" className="input" value={readOnly.fechaInicioVigencia} disabled />
           </div>
           <div>
             <label>{t('target_premium')}</label>
@@ -223,29 +237,8 @@ export default function Emission() {
           </div>
         </div>
 
-        {/* Cuidado Integral */}
-        <div className="form-section-title">{t('integral_care_section')}</div>
-        <div className="form-grid">
-          <div className="col-span-2">
-            <label>{t('integral_pop_emitted')}</label>
-            <input
-              type="number"
-              className="input"
-              value={form.cuidadoIntegralPoblacion || ''}
-              onChange={e => handleChange('cuidadoIntegralPoblacion', e.target.value)}
-              placeholder="0"
-            />
-          </div>
-          <div className="col-span-2">
-            <label>{t('integral_premium_emitted')}</label>
-            <input
-              type="number"
-              className="input"
-              value={form.cuidadoIntegralPrima || ''}
-              onChange={e => handleChange('cuidadoIntegralPrima', e.target.value)}
-              placeholder="0.00"
-            />
-          </div>
+        {/* Población Emitida (General) */}
+        <div className="form-grid" style={{ marginTop: '1rem' }}>
           <div className="col-span-4">
             <label>{t('emitted_pop')}</label>
             <input

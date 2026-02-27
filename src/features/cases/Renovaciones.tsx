@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/client';
-import { Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Loader2, Search, FileDown } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
-import Combobox from '../../components/Combobox';
+import { exportToExcel } from '../../utils/exportToExcel';
 
 interface Case {
   id: string;
@@ -21,13 +21,10 @@ interface Case {
   lastModified: string;
 }
 
-interface Account {
-  id: string;
-  name: string;
-}
+
 
 export default function Renovaciones() {
-  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const { t } = useLanguage();
   const navigate = useNavigate();
 
@@ -35,25 +32,22 @@ export default function Renovaciones() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
 
-  const { data: accounts = [] } = useQuery<Account[]>({
-    queryKey: ['accounts'],
+  const { data: allCases = [], isLoading: loadingCases } = useQuery<Case[]>({
+    queryKey: ['cases', 'renovaciones'],
     queryFn: async () => {
-      const res = await api.get('/accounts');
+      const res = await api.get('/cases/renovaciones');
       return res.data;
     }
   });
 
-  const { data: cases = [], isLoading: loadingCases } = useQuery<Case[]>({
-    queryKey: ['cases', 'renovaciones', selectedAccountId],
-    queryFn: async () => {
-      // If no account selected, fetch all renewals for the user
-      const endpoint = selectedAccountId
-        ? `/cases/renovaciones?accountId=${selectedAccountId}`
-        : '/cases/renovaciones';
-      const res = await api.get(endpoint);
-      return res.data;
-    }
-  });
+  const term = searchTerm.toLowerCase();
+  const cases = (allCases as Case[]).filter(
+    (c) =>
+      c.refnum.toLowerCase().includes(term) ||
+      c.account?.name.toLowerCase().includes(term) ||
+      (c.ramo || c.account?.ramo || '').toLowerCase().includes(term) ||
+      (c.status || '').toLowerCase().includes(term),
+  );
 
   const handleCreateRenewal = (parentCase: Case) => {
     navigate(`/accounts/new?id=${parentCase.account.id}&parentCaseId=${parentCase.id}`);
@@ -64,22 +58,37 @@ export default function Renovaciones() {
 
   return (
     <div style={{ paddingBottom: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.5rem', fontWeight: 700 }}>{t('header_renewals')}</h1>
+        <button
+          className="btn btn-secondary"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}
+          onClick={() => exportToExcel(
+            cases.map((c) => ({
+              Folio: c.refnum,
+              Cuenta: c.account?.name || '',
+              Ramo: c.ramo || c.account?.ramo || '',
+              Etapa: c.workflowStep,
+              Estado: c.status,
+            })),
+            'renovaciones'
+          )}
+        >
+          <FileDown size={16} /> Exportar Excel
+        </button>
       </div>
 
       <div className="card glass">
-        {/* Account Filter */}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <Combobox
-            label={t('account')}
-            options={accounts}
-            value={selectedAccountId}
-            onChange={(val) => {
-              setSelectedAccountId(val);
-              setPage(1);
-            }}
+        {/* Barra de búsqueda */}
+        <div style={{ marginBottom: '1.5rem', position: 'relative' }}>
+          <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+          <input
+            type="text"
             placeholder={t('search_placeholder')}
+            value={searchTerm}
+            onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+            className="input"
+            style={{ marginBottom: 0, paddingLeft: '3rem' }}
           />
         </div>
 
@@ -128,7 +137,7 @@ export default function Renovaciones() {
                 ) : (
                   <tr>
                     <td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      {selectedAccountId ? t('no_cases') : t('select_account')}
+                      {t('no_cases')}
                     </td>
                   </tr>
                 )}

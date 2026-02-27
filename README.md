@@ -1,73 +1,44 @@
-# React + TypeScript + Vite
+# 🖥 Frontend App (React + Vite)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interfaz de usuario premium para la gestión del Pipeline de Seguros.
 
-Currently, two official plugins are available:
+## 🚀 Instalación y Uso
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+1. Instalar dependencias:
+   ```bash
+   npm install
+   ```
+2. Iniciar servidor de desarrollo:
+   ```bash
+   npm run dev
+   ```
+3. Construir para producción:
+   ```bash
+   npm run build
+   ```
 
-## React Compiler
+## 🎨 Sistema de Diseño
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Arquitectura CSS**: Vanilla CSS con variables nativas en `src/index.css`.
+- **Efecto Glassmorphism**: Clase global `.glass` para tarjetas semitransparentes.
+- **Iconografía**: [Lucide React](https://lucide.dev/icons).
+- **Tipografía**: Inter (o sans-serif del sistema).
 
-## Expanding the ESLint configuration
+## 📂 Organización de Carpetas
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- `src/api`: Cliente Axios configurado.
+- `src/context`: Proveedores de contexto (Idioma, Autenticación).
+- `src/features`: Módulos de negocio (Accounts, Cases, Workflow, Dashboard).
+- `src/layouts`: Componente `Layout` con Sidebar y navegación principal.
+- `src/utils`: Funciones compartidas (Exportación Excel, formateo).
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## 🌐 Multi-idioma
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Se utiliza un `LanguageContext` simplificado. Las traducciones se encuentran en `src/context/LanguageContext.tsx`.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🔄 Gestión de Datos
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+TanStack Query (React Query) se encarga de:
+1. Cachear peticiones.
+2. Manejar estados de carga (`isLoading`).
+3. Refrescar datos automáticamente en mutaciones.

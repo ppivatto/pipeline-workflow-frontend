@@ -73,6 +73,7 @@ export default function Negotiation() {
   const [readOnly, setReadOnly] = useState<ReadOnlyData>({
     cuenta: '', ramo: '', fechaInicioVigencia: '', primaObjetivo: ''
   });
+  const [caseAccountId, setCaseAccountId] = useState<string | null>(null);
   const [form, setForm] = useState<NegotiationState>(INITIAL_NEG);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
@@ -85,15 +86,43 @@ export default function Negotiation() {
       try {
         const res = await api.get(`/cases/${id}`);
         const c = res.data;
+
+        // Store accountId for back-button navigation
+        setCaseAccountId(c.account?.id || c.accountId || null);
+
+        // fechaInicioVigencia may be ISO string → convert to YYYY-MM-DD for <input type="date">
+        const toDateStr = (val: any) => {
+          if (!val) return '';
+          const s = String(val);
+          // If already YYYY-MM-DD
+          if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+          // If ISO datetime
+          return s.substring(0, 10);
+        };
+
         setReadOnly({
           cuenta: c.account?.name || c.name || '',
           ramo: c.ramo || c.account?.ramo || '',
-          fechaInicioVigencia: c.fechaInicioVigencia || '',
-          primaObjetivo: c.primaObjetivo || ''
+          fechaInicioVigencia: toDateStr(c.fechaInicioVigencia),
+          primaObjetivo: String(c.primaObjetivo || ''),
         });
-        // If negotiation data already exists, pre-fill
+
+        // If negotiation data already exists, pre-fill (coerce numbers → strings)
         if (c.negotiationData) {
-          setForm(prev => ({ ...prev, ...c.negotiationData }));
+          const nd = c.negotiationData;
+          setForm(prev => ({
+            ...prev,
+            seQuedo: nd.seQuedo ?? prev.seQuedo,
+            poblacionAsegurada: nd.poblacionAsegurada != null ? String(nd.poblacionAsegurada) : prev.poblacionAsegurada,
+            estatus: nd.estatus || prev.estatus,
+            primaAsegurados: nd.primaAsegurados != null ? String(nd.primaAsegurados) : prev.primaAsegurados,
+            motivoNoGanado: nd.motivoNoGanado || prev.motivoNoGanado,
+            aseguradoraGanadora: nd.aseguradoraGanadora || prev.aseguradoraGanadora,
+            primaCompetencia: nd.primaCompetencia != null ? String(nd.primaCompetencia) : prev.primaCompetencia,
+            cuidadoIntegralPoblacion: nd.cuidadoIntegralPoblacion != null ? String(nd.cuidadoIntegralPoblacion) : prev.cuidadoIntegralPoblacion,
+            cuidadoIntegralPrima: nd.cuidadoIntegralPrima != null ? String(nd.cuidadoIntegralPrima) : prev.cuidadoIntegralPrima,
+            observaciones: nd.observaciones || prev.observaciones,
+          }));
         }
       } catch {
         // Mock fallback
@@ -173,7 +202,12 @@ export default function Negotiation() {
   };
 
   const handleBack = () => {
-    navigate(`/accounts/new?id=${id}`);
+    // Navigate to Alta form with both accountId and caseId so data loads correctly
+    if (caseAccountId) {
+      navigate(`/accounts/new?id=${caseAccountId}&caseId=${id}`);
+    } else {
+      navigate(`/accounts/new?caseId=${id}`);
+    }
   };
 
   const getInputClass = (field: string) => `input ${errors[field] ? 'input-error' : ''}`;
@@ -222,8 +256,8 @@ export default function Negotiation() {
             <input className="input" value={readOnly.ramo} disabled />
           </div>
           <div>
-            <label>{t('start_date')}</label>
-            <input type="text" className="input" value={readOnly.fechaInicioVigencia} disabled />
+            <label>Fecha de Inicio de Vigencia</label>
+            <input type="date" className="input" value={readOnly.fechaInicioVigencia} disabled />
           </div>
           <div>
             <label>{t('target_premium')}</label>
@@ -234,17 +268,6 @@ export default function Negotiation() {
         {/* Negotiation Capture */}
         <div className="form-section-title">{t('capture_negotiation')}</div>
         <div className="form-grid">
-          <div className="col-span-4" style={{ marginBottom: '0.5rem' }}>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={form.seQuedo}
-                onChange={e => handleChange('seQuedo', e.target.checked)}
-                style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
-              />
-              {t('stayed')}
-            </label>
-          </div>
           <div>
             <label>{t('insured_pop')} *</label>
             <input
@@ -273,6 +296,17 @@ export default function Negotiation() {
               onChange={e => handleChange('primaAsegurados', e.target.value)}
               placeholder="0.00"
             />
+          </div>
+          <div className="col-span-4" style={{ marginTop: '0.5rem' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={form.seQuedo}
+                onChange={e => handleChange('seQuedo', e.target.checked)}
+                style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
+              />
+              {t('stayed')}
+            </label>
           </div>
         </div>
 
