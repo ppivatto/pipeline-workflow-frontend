@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Building, LogOut, ChevronLeft, ChevronRight, Moon, Sun, Globe, User, XCircle, BarChart3, Activity, Inbox } from 'lucide-react';
+import { LayoutDashboard, Building, LogOut, ChevronLeft, ChevronRight, Moon, Sun, Globe, User, XCircle, BarChart3, Activity, Inbox, Settings2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -45,13 +45,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <MenuItem to="/accounts" icon={<LayoutDashboard size={20} />} label={t('menu_cuentas')} collapsed={collapsed} active={isActive('/accounts')} />
           <MenuItem to="/renovaciones" icon={<Building size={20} />} label={t('menu_renovaciones')} collapsed={collapsed} active={isActive('/renovaciones')} />
           <MenuItem to="/bandeja" icon={<Inbox size={20} />} label="Seguimiento" collapsed={collapsed} active={isActive('/bandeja')} />
-          <MenuItem to="/cancelados" icon={<XCircle size={20} />} label="Cancelados" collapsed={collapsed} active={isActive('/cancelados')} />
+          <MenuItem to="/cancelados" icon={<XCircle size={20} />} label="Rechazados" collapsed={collapsed} active={isActive('/cancelados')} />
 
           {!collapsed && <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '1.5rem 0 0.25rem', paddingLeft: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Análisis</p>}
           {collapsed && <div style={{ margin: '0.75rem 0', borderTop: '1px solid var(--border)' }} />}
 
           <MenuItem to="/dashboard" icon={<Activity size={20} />} label="Dashboard" collapsed={collapsed} active={isActive('/dashboard')} />
           <MenuItem to="/reportes" icon={<BarChart3 size={20} />} label="Reportes" collapsed={collapsed} active={isActive('/reportes')} />
+
+          {!collapsed && <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '1.5rem 0 0.25rem', paddingLeft: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Configuración</p>}
+          {collapsed && <div style={{ margin: '0.75rem 0', borderTop: '1px solid var(--border)' }} />}
+
+          <MenuItem to="/catalogos" icon={<Settings2 size={20} />} label="Catálogos" collapsed={collapsed} active={isActive('/catalogos')} />
         </nav>
 
         <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -116,7 +121,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             border: '1px solid var(--border)'
           }}>
             <div style={{ textAlign: 'right' }}>
-              <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)' }}>BIENVENIDO / Luis Hierro</p>
+              <p style={{ margin: 0, fontSize: '0.8rem', fontWeight: 600, color: 'var(--primary)' }}>BIENVENIDO / {(() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.name || 'Usuario'; } catch { return 'Usuario'; } })()}</p>
               <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-muted)' }}>MXE01510711A - Funcionario Comercial</p>
             </div>
             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>

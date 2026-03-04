@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../api/client';
 import { ArrowLeft, Save, ArrowRight, Loader2 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { fmtMoney, formatMoneyInput, parseMoney } from '../../utils/moneyFormat';
 
 interface ReadOnlyData {
   cuenta: string;
@@ -37,38 +38,17 @@ const INITIAL_NEG: NegotiationState = {
   observaciones: ''
 };
 
-const MOTIVOS = [
-  'Precio',
-  'Cobertura insuficiente',
-  'Servicio',
-  'Relación con el agente',
-  'Condiciones contractuales',
-  'Otro'
-];
-
-const ASEGURADORAS = [
-  'GNP Seguros',
-  'Zurich',
-  'Chubb',
-  'Mapfre',
-  'HDI Seguros',
-  'Allianz',
-  'MetLife',
-  'Otro'
-];
-
-const ESTATUS_OPTIONS = [
-  { value: 'EN_NEGOCIACION', label: 'En negociación' },
-  { value: 'PROPUESTA_ENVIADA', label: 'Propuesta enviada' },
-  { value: 'PENDIENTE_RESPUESTA', label: 'Pendiente de respuesta' },
-  { value: 'GANADA', label: 'Ganada' },
-  { value: 'PERDIDA', label: 'Perdida' },
-];
-
 export default function Negotiation() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+
+  const [catalogs, setCatalogs] = useState<Record<string, { key: string, value_es: string, value_en: string, value_pt: string }[]>>({});
+
+  const catValues = (name: string): string[] => {
+    const langKey = `value_${language}` as 'value_es' | 'value_en' | 'value_pt';
+    return (catalogs[name] || []).map(e => e[langKey] || e.value_es || '');
+  };
 
   const [readOnly, setReadOnly] = useState<ReadOnlyData>({
     cuenta: '', ramo: '', fechaInicioVigencia: '', primaObjetivo: ''
@@ -79,6 +59,13 @@ export default function Negotiation() {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Load catalogs from backend
+  useEffect(() => {
+    api.get('/catalogs')
+      .then(res => setCatalogs(res.data))
+      .catch(err => console.error('Error loading catalogs', err));
+  }, []);
 
   // Load inherited data from the case/account
   useEffect(() => {
@@ -121,7 +108,13 @@ export default function Negotiation() {
             primaCompetencia: nd.primaCompetencia != null ? String(nd.primaCompetencia) : prev.primaCompetencia,
             cuidadoIntegralPoblacion: nd.cuidadoIntegralPoblacion != null ? String(nd.cuidadoIntegralPoblacion) : prev.cuidadoIntegralPoblacion,
             cuidadoIntegralPrima: nd.cuidadoIntegralPrima != null ? String(nd.cuidadoIntegralPrima) : prev.cuidadoIntegralPrima,
-            observaciones: nd.observaciones || prev.observaciones,
+            observaciones: nd.observaciones || c.data?.observaciones || prev.observaciones,
+          }));
+        } else {
+          // If no negotiation data, at least inherit observations from Alta
+          setForm(prev => ({
+            ...prev,
+            observaciones: c.data?.observaciones || prev.observaciones,
           }));
         }
       } catch {
@@ -157,16 +150,18 @@ export default function Negotiation() {
     }
   };
 
+  const LOSS_STATUSES = ['No Ganada', 'Rechazo de AXA', 'Cancelación'];
+
   const validate = () => {
     const newErrors: Record<string, boolean> = {};
-    if (!form.estatus) newErrors.estatus = true;
+    // Per spec US-4: only Observaciones is mandatory initially
     if (!form.observaciones) newErrors.observaciones = true;
-    if (!form.poblacionAsegurada) newErrors.poblacionAsegurada = true;
 
-    // If not won, validate loss fields
-    if (!form.seQuedo && (form.estatus === 'PERDIDA')) {
+    // Loss fields only mandatory if exactly "No Ganada"
+    if (form.estatus === 'No Ganada' && !form.seQuedo) {
       if (!form.motivoNoGanado) newErrors.motivoNoGanado = true;
       if (!form.aseguradoraGanadora) newErrors.aseguradoraGanadora = true;
+      if (!form.primaCompetencia) newErrors.primaCompetencia = true;
     }
 
     setErrors(newErrors);
@@ -178,8 +173,25 @@ export default function Negotiation() {
     setLoading(true);
     try {
       await api.put(`/negotiation/${id}`, { ...form, advance: false });
+
+      // If loss status + not retained → move to RECHAZADO
+      if (LOSS_STATUSES.includes(form.estatus) && !form.seQuedo) {
+        try {
+          await api.put(`/cases/${id}`, { ramo: readOnly.ramo, estatus: form.estatus, rejectedFromNegotiation: true });
+        } catch { /* best effort */ }
+        setSuccessMsg('Caso movido a Rechazados');
+        setTimeout(() => navigate('/rechazados'), 1500);
+        return;
+      }
+
       setSuccessMsg('Negociación guardada correctamente');
     } catch {
+      // Mock: still check auto-reject
+      if (LOSS_STATUSES.includes(form.estatus) && !form.seQuedo) {
+        setSuccessMsg('Caso movido a Rechazados (Mock)');
+        setTimeout(() => navigate('/rechazados'), 1500);
+        return;
+      }
       setSuccessMsg('Negociación guardada correctamente (Mock)');
     } finally {
       setLoading(false);
@@ -211,8 +223,6 @@ export default function Negotiation() {
   };
 
   const getInputClass = (field: string) => `input ${errors[field] ? 'input-error' : ''}`;
-
-  const showLossFields = !form.seQuedo && (form.estatus === 'PERDIDA' || form.estatus === '');
 
   if (loadingData) {
     return (
@@ -261,7 +271,7 @@ export default function Negotiation() {
           </div>
           <div>
             <label>{t('target_premium')}</label>
-            <input className="input" value={readOnly.primaObjetivo ? `$${Number(readOnly.primaObjetivo).toLocaleString()}` : ''} disabled />
+            <input className="input" value={readOnly.primaObjetivo ? fmtMoney(readOnly.primaObjetivo) : ''} disabled />
           </div>
         </div>
 
@@ -269,36 +279,70 @@ export default function Negotiation() {
         <div className="form-section-title">{t('capture_negotiation')}</div>
         <div className="form-grid">
           <div>
-            <label>{t('insured_pop')} *</label>
+            <label>{t('insured_pop')}</label>
             <input
               type="number"
               min="1"
               step="1"
-              className={getInputClass('poblacionAsegurada')}
+              className="input"
               value={form.poblacionAsegurada}
               onChange={e => handleChange('poblacionAsegurada', e.target.value)}
               placeholder="0"
             />
           </div>
           <div>
-            <label>{t('status')} *</label>
-            <select className={getInputClass('estatus')} value={form.estatus} onChange={e => handleChange('estatus', e.target.value)}>
+            <label>{t('status')}</label>
+            <select className="input" value={form.estatus} onChange={e => handleChange('estatus', e.target.value)}>
               <option value="">{t('select')}</option>
-              {ESTATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {catValues('estatus').map(e => <option key={e} value={e}>{e}</option>)}
             </select>
           </div>
           <div>
             <label>{t('insured_premium')}</label>
             <input
-              type="number"
+              type="text"
               className="input"
-              value={form.primaAsegurados}
-              onChange={e => handleChange('primaAsegurados', e.target.value)}
+              value={formatMoneyInput(form.primaAsegurados).display}
+              onChange={e => handleChange('primaAsegurados', parseMoney(e.target.value))}
               placeholder="0.00"
             />
           </div>
-          <div className="col-span-4" style={{ marginTop: '0.5rem' }}>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+        </div>
+
+        {/* Datos de Pérdida (Always Visible, Conditionally Mandatory) */}
+        <div className="form-section-title">{t('loss_data')}</div>
+        <div className="form-grid">
+          <div>
+            <label>{t('loss_reason')} {form.estatus === 'No Ganada' ? '*' : ''}</label>
+            <select className={getInputClass('motivoNoGanado')} value={form.motivoNoGanado} onChange={e => handleChange('motivoNoGanado', e.target.value)}>
+              <option value="">{t('select')}</option>
+              {catValues('motivoNoGanado').map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <label>{t('winning_insurer')} {form.estatus === 'No Ganada' ? '*' : ''}</label>
+            <select className={getInputClass('aseguradoraGanadora')} value={form.aseguradoraGanadora} onChange={e => handleChange('aseguradoraGanadora', e.target.value)}>
+              <option value="">{t('select')}</option>
+              {catValues('aseguradoraGanadora').map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+          <div>
+            <label>{t('comp_premium')} {form.estatus === 'No Ganada' ? '*' : ''}</label>
+            <input
+              type="text"
+              className={getInputClass('primaCompetencia')}
+              value={formatMoneyInput(form.primaCompetencia).display}
+              onChange={e => handleChange('primaCompetencia', parseMoney(e.target.value))}
+              placeholder="0.00"
+            />
+          </div>
+        </div>
+
+        {/* Cuidado Integral */}
+        <div className="form-section-title">{t('integral_care_section')}</div>
+        <div className="form-grid" style={{ alignItems: 'flex-end' }}>
+          <div style={{ paddingBottom: '0.5rem' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
               <input
                 type="checkbox"
                 checked={form.seQuedo}
@@ -308,64 +352,30 @@ export default function Negotiation() {
               {t('stayed')}
             </label>
           </div>
-        </div>
-
-        {/* Conditional Loss Fields */}
-        {showLossFields && (
-          <>
-            <div className="form-section-title">{t('loss_data')}</div>
-            <div className="form-grid">
+          {form.seQuedo && (
+            <>
               <div>
-                <label>{t('loss_reason')} {form.estatus === 'PERDIDA' ? '*' : ''}</label>
-                <select className={getInputClass('motivoNoGanado')} value={form.motivoNoGanado} onChange={e => handleChange('motivoNoGanado', e.target.value)}>
-                  <option value="">{t('select')}</option>
-                  {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-              </div>
-              <div>
-                <label>{t('winning_insurer')} {form.estatus === 'PERDIDA' ? '*' : ''}</label>
-                <select className={getInputClass('aseguradoraGanadora')} value={form.aseguradoraGanadora} onChange={e => handleChange('aseguradoraGanadora', e.target.value)}>
-                  <option value="">{t('select')}</option>
-                  {ASEGURADORAS.map(a => <option key={a} value={a}>{a}</option>)}
-                </select>
-              </div>
-              <div>
-                <label>{t('comp_premium')}</label>
+                <label>{t('integral_pop')}</label>
                 <input
                   type="number"
                   className="input"
-                  value={form.primaCompetencia}
-                  onChange={e => handleChange('primaCompetencia', e.target.value)}
+                  value={form.cuidadoIntegralPoblacion}
+                  onChange={e => handleChange('cuidadoIntegralPoblacion', e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+              <div className="col-span-2">
+                <label>{t('integral_premium')}</label>
+                <input
+                  type="text"
+                  className="input"
+                  value={formatMoneyInput(form.cuidadoIntegralPrima).display}
+                  onChange={e => handleChange('cuidadoIntegralPrima', parseMoney(e.target.value))}
                   placeholder="0.00"
                 />
               </div>
-            </div>
-          </>
-        )}
-
-        {/* Cuidado Integral */}
-        <div className="form-section-title">{t('integral_care_section')}</div>
-        <div className="form-grid">
-          <div className="col-span-2">
-            <label>{t('integral_pop')}</label>
-            <input
-              type="number"
-              className="input"
-              value={form.cuidadoIntegralPoblacion}
-              onChange={e => handleChange('cuidadoIntegralPoblacion', e.target.value)}
-              placeholder="0"
-            />
-          </div>
-          <div className="col-span-2">
-            <label>{t('integral_premium')}</label>
-            <input
-              type="number"
-              className="input"
-              value={form.cuidadoIntegralPrima}
-              onChange={e => handleChange('cuidadoIntegralPrima', e.target.value)}
-              placeholder="0.00"
-            />
-          </div>
+            </>
+          )}
         </div>
 
         {/* Observaciones */}

@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/client';
-import { Loader2, InboxIcon, FileDown } from 'lucide-react';
+import { Loader2, InboxIcon, FileDown, Eye } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { exportToExcel } from '../../utils/exportToExcel';
+import FichaCaso from '../../components/FichaCaso';
 
 interface Case {
   id: string;
@@ -33,6 +34,7 @@ export default function BandejaSeguimiento() {
   const [searchTerm, setSearchTerm] = useState('');
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  const [fichaCaseId, setFichaCaseId] = useState<string | null>(null);
 
   const { data: cases = [], isLoading } = useQuery<Case[]>({
     queryKey: ['bandeja-seguimiento'],
@@ -64,13 +66,17 @@ export default function BandejaSeguimiento() {
   };
 
   const term = searchTerm.toLowerCase();
-  const filtered = (cases as Case[]).filter(
-    (c) =>
-      c.refnum.toLowerCase().includes(term) ||
-      (c.account?.name || '').toLowerCase().includes(term) ||
-      (c.ramo || '').toLowerCase().includes(term) ||
-      (c.status || '').toLowerCase().includes(term),
-  );
+  const minChars = 3;
+  const shouldFilter = term.length >= minChars;
+  const filtered = shouldFilter
+    ? (cases as Case[]).filter(
+      (c) =>
+        c.refnum.toLowerCase().includes(term) ||
+        (c.account?.name || '').toLowerCase().includes(term) ||
+        (c.ramo || '').toLowerCase().includes(term) ||
+        (c.status || '').toLowerCase().includes(term),
+    )
+    : (cases as Case[]);
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
   const paginated = filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -85,6 +91,8 @@ export default function BandejaSeguimiento() {
 
   return (
     <div>
+      {fichaCaseId && <FichaCaso caseId={fichaCaseId} onClose={() => setFichaCaseId(null)} />}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '1.875rem', fontWeight: 700, color: 'var(--text-main)' }}>
@@ -129,20 +137,25 @@ export default function BandejaSeguimiento() {
       <div className="card glass" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
         <input
           type="text"
-          placeholder="Buscar por folio, cuenta, ramo o estado…"
+          placeholder="Buscar por folio, cuenta, ramo o estado… (mín. 3 caracteres)"
           value={searchTerm}
           onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
           className="input"
           style={{ marginBottom: 0 }}
         />
+        {searchTerm.length > 0 && searchTerm.length < minChars && (
+          <p style={{ margin: '0.4rem 0 0', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Ingresa al menos {minChars} caracteres para buscar
+          </p>
+        )}
       </div>
 
       <div className="card glass" style={{ padding: 0, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', background: 'var(--header-bg)' }}>
-              {['Folio', 'Cuenta', 'Ramo', 'Etapa', 'Tipo', 'Subtipo', 'Estado', 'Última modif.'].map((h) => (
-                <th key={h} style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>{h}</th>
+              {['Folio', 'Cuenta', 'Ramo', 'Etapa', 'Tipo', 'Subtipo', 'Estado', 'Última modif.', 'Ficha'].map((h) => (
+                <th key={h} style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', ...(h === 'Ficha' ? { width: 80, textAlign: 'center' as const } : {}) }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -173,6 +186,16 @@ export default function BandejaSeguimiento() {
                     <td style={{ padding: '1rem' }}>{c.status}</td>
                     <td style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                       {c.updatedAt ? new Date(c.updatedAt).toLocaleDateString('es-MX') : '—'}
+                    </td>
+                    <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
+                      <button
+                        title="Ver ficha del caso"
+                        className="btn btn-secondary"
+                        style={{ padding: '0.35rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem' }}
+                        onClick={(e) => { e.stopPropagation(); setFichaCaseId(c.id); }}
+                      >
+                        <Eye size={14} /> Ficha
+                      </button>
                     </td>
                   </tr>
                 );

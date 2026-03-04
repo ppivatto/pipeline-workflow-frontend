@@ -27,18 +27,16 @@ export default function Seguimiento() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: accountName = '...' } = useQuery({
+  const { data: account } = useQuery({
     queryKey: ['account', accountId],
     queryFn: async () => {
-      try {
-        const res = await api.get(`/accounts/${accountId}`);
-        return res.data.name;
-      } catch {
-        return 'Cuenta Desconocida';
-      }
+      const res = await api.get(`/accounts/${accountId}`);
+      return res.data;
     },
     enabled: !!accountId
   });
+
+  const accountName = account?.name || '...';
 
   const { data: cases = [], isLoading: loadingCases } = useQuery({
     queryKey: ['cases', accountId],

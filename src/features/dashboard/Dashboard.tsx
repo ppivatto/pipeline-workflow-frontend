@@ -8,7 +8,8 @@ export default function Dashboard() {
     queryFn: async () => {
       const res = await api.get('/dashboard/stats');
       return res.data;
-    }
+    },
+    staleTime: 60_000, // 1 min cache — avoid refetch on every navigation
   });
 
   const stats = [

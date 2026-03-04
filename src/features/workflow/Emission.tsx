@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../../api/client';
 import { ArrowLeft, Save, CheckCircle, Loader2 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { fmtMoney } from '../../utils/moneyFormat';
 
 interface ReadOnlyData {
   cuenta: string;
@@ -74,7 +75,13 @@ export default function Emission() {
             numPolizas: ed.numPolizas != null ? String(ed.numPolizas) : prev.numPolizas,
             poliza: ed.poliza || prev.poliza,
             poblacionEmitida: ed.poblacionEmitida != null ? String(ed.poblacionEmitida) : prev.poblacionEmitida,
-            observaciones: ed.observaciones || prev.observaciones,
+            observaciones: ed.observaciones || c.negotiationData?.observaciones || c.data?.observaciones || prev.observaciones,
+          }));
+        } else {
+          // If no emission data, inherit observations from Negotiation or Alta
+          setForm(prev => ({
+            ...prev,
+            observaciones: c.negotiationData?.observaciones || c.data?.observaciones || prev.observaciones,
           }));
         }
       } catch {
@@ -101,10 +108,8 @@ export default function Emission() {
 
   const validate = () => {
     const newErrors: Record<string, boolean> = {};
-    // if (!form.observaciones) newErrors.observaciones = true;
-
-    // Add validation for other fields if strictly required, but requirements emphasize Observaciones for finishing.
-    // Let's add basic checks for dates if they are provided
+    // Per spec US-6: only Observaciones is mandatory
+    if (!form.observaciones) newErrors.observaciones = true;
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -190,7 +195,7 @@ export default function Emission() {
           </div>
           <div>
             <label>{t('target_premium')}</label>
-            <input className="input" value={readOnly.primaObjetivo ? `$${Number(readOnly.primaObjetivo).toLocaleString()}` : ''} disabled />
+            <input className="input" value={readOnly.primaObjetivo ? fmtMoney(readOnly.primaObjetivo) : ''} disabled />
           </div>
         </div>
 

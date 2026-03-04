@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import api from '../../api/client';
-import { Plus, ChevronLeft, ChevronRight, Loader2, Search, FileDown } from 'lucide-react';
-import { useLanguage } from '../../context/LanguageContext';
 import { useNavigate } from 'react-router-dom';
+import api from '../../api/client';
+import { ChevronLeft, ChevronRight, Loader2, Search, FileDown, Eye, Plus } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import { exportToExcel } from '../../utils/exportToExcel';
+import FichaCaso from '../../components/FichaCaso';
 
 interface Case {
   id: string;
@@ -27,6 +28,7 @@ export default function Renovaciones() {
   const [searchTerm, setSearchTerm] = useState('');
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const [fichaCaseId, setFichaCaseId] = useState<string | null>(null);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -49,15 +51,15 @@ export default function Renovaciones() {
       (c.status || '').toLowerCase().includes(term),
   );
 
-  const handleCreateRenewal = (parentCase: Case) => {
-    navigate(`/accounts/new?id=${parentCase.account.id}&parentCaseId=${parentCase.id}`);
-  };
+
 
   const totalPages = Math.ceil(cases.length / limit);
   const paginatedCases = cases.slice((page - 1) * limit, page * limit);
 
   return (
     <div style={{ paddingBottom: '2rem' }}>
+      {fichaCaseId && <FichaCaso caseId={fichaCaseId} onClose={() => setFichaCaseId(null)} />}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1 style={{ margin: 0, color: 'var(--text-main)', fontSize: '1.5rem', fontWeight: 700 }}>{t('header_renewals')}</h1>
         <button
@@ -124,13 +126,22 @@ export default function Renovaciones() {
                       <td style={{ padding: '1rem' }}>{c.data?.subtipo || '-'}</td>
                       <td style={{ padding: '1rem' }}>{c.status}</td>
                       <td style={{ padding: '1rem' }}>
-                        <button
-                          onClick={() => handleCreateRenewal(c)}
-                          className="btn btn-primary"
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                        >
-                          <Plus size={14} /> {t('new_case')}
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setFichaCaseId(c.id); }}
+                            className="btn btn-secondary"
+                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                          >
+                            <Eye size={14} /> {t('ficha')}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate(`/accounts/new?parentCaseId=${c.id}`); }}
+                            className="btn btn-primary"
+                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                          >
+                            <Plus size={14} /> {t('new_case')}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

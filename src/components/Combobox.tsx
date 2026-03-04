@@ -7,19 +7,28 @@ interface Option {
 }
 
 interface ComboboxProps {
-  options: Option[];
+  options: (Option | string)[];
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   label?: string;
+  maxResults?: number;
 }
 
-export default function Combobox({ options, value, onChange, placeholder, label }: ComboboxProps) {
+/** Normalize options: accept both string[] and Option[] */
+function normalizeOptions(options: (Option | string)[]): Option[] {
+  return options.map(opt =>
+    typeof opt === 'string' ? { id: opt, name: opt } : opt
+  );
+}
+
+export default function Combobox({ options, value, onChange, placeholder, label, maxResults = 10 }: ComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const selectedOption = options.find(opt => opt.id === value);
+  const normalizedOptions = normalizeOptions(options);
+  const selectedOption = normalizedOptions.find(opt => opt.id === value);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -31,9 +40,9 @@ export default function Combobox({ options, value, onChange, placeholder, label 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredOptions = options
+  const filteredOptions = normalizedOptions
     .filter(opt => opt.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    .slice(0, 5); // Limit to 5 results as requested
+    .slice(0, maxResults);
 
   return (
     <div ref={wrapperRef} style={{ position: 'relative', width: '100%' }}>
@@ -83,7 +92,31 @@ export default function Combobox({ options, value, onChange, placeholder, label 
               onClick={(e) => e.stopPropagation()}
             />
           </div>
-          <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+          <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
+            {/* Clear selection option */}
+            {value && (
+              <div
+                onClick={() => {
+                  onChange('');
+                  setIsOpen(false);
+                  setSearchTerm('');
+                }}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.8rem',
+                  fontStyle: 'italic',
+                  borderBottom: '1px solid var(--border)',
+                  marginBottom: '0.25rem',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                Limpiar selección
+              </div>
+            )}
             {filteredOptions.length > 0 ? (
               filteredOptions.map(opt => (
                 <div

@@ -3,6 +3,8 @@ import api from '../../api/client';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
 import { Save, ArrowRight, Loader2, X } from 'lucide-react';
+import Combobox from '../../components/Combobox';
+import { formatMoneyInput, parseMoney } from '../../utils/moneyFormat';
 
 interface FormState {
   // General
@@ -15,7 +17,10 @@ interface FormState {
   fechaInicioVigencia: string;
 
   primaObjetivo: string;
-  cuidadoIntegral: string; // New field
+  cuidadoIntegral: string;
+  cuentaConPlanmed: string; // Si/No
+  tipoPlanMed: string;      // Tipo if cuentaConPlanmed=Si
+  plan: string;
 
   // Agente
   claveAgente: string;
@@ -29,8 +34,6 @@ interface FormState {
   // Producto/Suscripcion
   nuevoConducto: string;
   nearshoring: string;
-  cuentaConPlanmed: string;
-  plan: string;
   primaCotizada: string;
   poblacion: string;
   incisos: string;
@@ -45,33 +48,10 @@ interface FormState {
 }
 
 const INITIAL_STATE: FormState = {
-  name: '', ramo: '', subramo: '', giroNegocio: '', tipoExperiencia: '', etapa: 'Creado', fechaInicioVigencia: '', primaObjetivo: '', cuidadoIntegral: '',
+  name: '', ramo: '', subramo: '', giroNegocio: '', tipoExperiencia: '', etapa: 'Creado', fechaInicioVigencia: '', primaObjetivo: '', cuidadoIntegral: '', cuentaConPlanmed: '', tipoPlanMed: '', plan: '',
   claveAgente: '', nombreAgente: '', promotor: '', territorio: '', oficina: '', canal: '', centroCostos: '',
-  nuevoConducto: '', nearshoring: '', cuentaConPlanmed: '', plan: '', primaCotizada: '', poblacion: '', incisos: '', ubicaciones: '', instanciaFolio: '', responsableSuscripcion: '', fechaSolicitud: '', fechaEntrega: '',
+  nuevoConducto: '', nearshoring: '', primaCotizada: '', poblacion: '', incisos: '', ubicaciones: '', instanciaFolio: '', responsableSuscripcion: '', fechaSolicitud: '', fechaEntrega: '',
   observaciones: ''
-};
-
-const RAMOS = ['Autos', 'Daños', 'Salud', 'Vida'];
-
-const SUBRAMOS = [
-  'Múltiple Empresarial (MEM)',
-  'L. Com Transportes',
-  'L. Com Responsabilidad Civil',
-  'L. Com Ramos Técnicos',
-  'L. Est. Transportes',
-  'L. Est. Responsabilidad Civil',
-  'L. Est Ramos Técnicos',
-  'Obras de Arte',
-  'Aviación',
-  'Financieras & Cyber',
-  'Property',
-  'Parámetro',
-  'Otro',
-];
-
-const AGENTS_MOCK: Record<string, any> = {
-  '26601': { nombre: 'JUAN PEREZ', promotor: 'PROMOTORIA NORTE', territorio: 'NORTE', oficina: 'MONTERREY', canal: 'AGENTE', centroCostos: 'CC-001' },
-  '12345': { nombre: 'MARIA LOPEZ', promotor: 'PROMOTORIA SUR', territorio: 'SUR', oficina: 'CDMX SUR', canal: 'BROKER', centroCostos: 'CC-002' }
 };
 
 export default function NewAccount() {
@@ -82,13 +62,32 @@ export default function NewAccount() {
   const [successMsg, setSuccessMsg] = useState('');
   const [createdCaseId, setCreatedCaseId] = useState<string | null>(null);
   const [duplicateError, setDuplicateError] = useState('');
+  const [catalogs, setCatalogs] = useState<Record<string, { key: string, value_es: string, value_en: string, value_pt: string }[]>>({});
+
+  /** Extract the localized values from a catalog for simple selects */
+  const catValues = (name: string): string[] => {
+    const langKey = `value_${language}` as 'value_es' | 'value_en' | 'value_pt';
+    return (catalogs[name] || []).map(e => e[langKey] || e.value_es || '');
+  };
 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const accountId = searchParams.get('id');
   const caseId = searchParams.get('caseId'); // Get caseId for editing
   const parentCaseId = searchParams.get('parentCaseId');
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+
+  const AGENTS_MOCK: Record<string, any> = {
+    '26601': { nombre: 'JUAN PEREZ', promotor: 'PROMOTORIA NORTE', territorio: 'NORTE', oficina: 'MONTERREY', canal: 'AGENTE', centroCostos: 'CC-001' },
+    '12345': { nombre: 'MARIA LOPEZ', promotor: 'PROMOTORIA SUR', territorio: 'SUR', oficina: 'CDMX SUR', canal: 'BROKER', centroCostos: 'CC-002' }
+  };
+
+  // Load catalogs from backend
+  useEffect(() => {
+    api.get('/catalogs')
+      .then(res => setCatalogs(res.data))
+      .catch(err => console.error('Error loading catalogs', err));
+  }, []);
 
   // Load account/case data if editing or renewal
   useEffect(() => {
@@ -181,40 +180,88 @@ export default function NewAccount() {
   }, [accountId, caseId, parentCaseId]);
 
   const handleChange = (field: keyof FormState, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+
+      // === Ramo changes: reset dependent fields ===
+      if (field === 'ramo') {
+        next.subramo = '';
+        next.giroNegocio = '';
+        next.tipoExperiencia = '';
+      }
+
+      // === Mutual exclusion: Cuidado Integral <-> Planmed ===
+      if (field === 'cuidadoIntegral' && value === 'Si') {
+        next.cuentaConPlanmed = '';
+        next.tipoPlanMed = '';
+      }
+      if (field === 'cuentaConPlanmed' && value === 'Si') {
+        next.cuidadoIntegral = '';
+        next.plan = '';
+      }
+      // If Planmed set to No or empty, clear tipo
+      if (field === 'cuentaConPlanmed' && value !== 'Si') {
+        next.tipoPlanMed = '';
+      }
+      // If CI set to No or empty, clear plan
+      if (field === 'cuidadoIntegral' && value !== 'Si') {
+        next.plan = '';
+      }
+
+      return next;
+    });
+
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: false }));
     }
     if (field === 'name') {
       setDuplicateError('');
     }
-
-    // Logic for dependent dropdowns
-    if (field === 'ramo') {
-      setFormData(prev => ({ ...prev, ramo: value, subramo: '' }));
-    }
   };
 
-  const checkDuplicateAccount = async () => {
-    // Only check when creating a new account (no accountId/caseId)
-    if (accountId || caseId || !formData.name.trim()) return;
-    try {
-      const res = await api.get(`/accounts/check-duplicate?name=${encodeURIComponent(formData.name.trim())}`);
-      if (res.data.exists) {
-        setDuplicateError(`Cuenta "${formData.name}" ya existe. No se puede crear una cuenta duplicada.`);
-      } else {
+  // Derived state: which ramo-dependent field is required
+  const showGiroNegocio = formData.ramo === 'Autos';
+  const showSubramo = formData.ramo === 'Daños';
+  const showTipoExperiencia = formData.ramo === 'Salud' || formData.ramo === 'Vida';
+  const showTipoPlanMed = formData.cuentaConPlanmed === 'Si';
+  const showPlan = formData.cuidadoIntegral === 'Si';
+  const ciDisabled = formData.cuentaConPlanmed === 'Si';
+  const planmedDisabled = formData.cuidadoIntegral === 'Si';
+
+  // Instant validation for Account + Ramo duplication
+  useEffect(() => {
+    const validateDuplicateCase = async () => {
+      if (accountId || caseId || !formData.name.trim() || !formData.ramo) {
         setDuplicateError('');
+        return;
       }
-    } catch {
-      // If endpoint fails, don't block
-    }
-  };
+      try {
+        // First see if account exists by this exact name
+        const accRes = await api.get(`/accounts/check-duplicate?name=${encodeURIComponent(formData.name.trim())}`);
+        if (accRes.data.exists && accRes.data.account?.id) {
+          // If it exists, check if there's already a case for this ramo
+          const caseRes = await api.get(`/cases/check-duplicate?accountId=${accRes.data.account.id}&ramo=${encodeURIComponent(formData.ramo)}`);
+          if (caseRes.data.exists) {
+            setDuplicateError(`Ya existe un caso abierto para la cuenta "${formData.name}" con ramo "${formData.ramo}". No se puede crear otro.`);
+            return;
+          }
+        }
+        setDuplicateError('');
+      } catch (err) {
+        // Ignore network errors here to avoid blocking
+      }
+    };
+
+    // Add a slight debounce to prevent spamming while typing name
+    const timeoutId = setTimeout(() => validateDuplicateCase(), 500);
+    return () => clearTimeout(timeoutId);
+  }, [formData.name, formData.ramo, accountId, caseId]);
+
+
 
   const searchAgent = async () => {
     if (!formData.claveAgente) return;
     setSearchingAgent(true);
-
-    // Simulate API call
     setTimeout(() => {
       const agent = AGENTS_MOCK[formData.claveAgente];
       if (agent) {
@@ -236,14 +283,22 @@ export default function NewAccount() {
 
   const validate = () => {
     const newErrors: Record<string, boolean> = {};
-    const requiredFields: (keyof FormState)[] = [
-      'name', 'ramo', 'subramo', 'giroNegocio', 'tipoExperiencia', 'etapa',
-      'fechaInicioVigencia', 'primaObjetivo', 'claveAgente', 'nuevoConducto', 'nearshoring', 'observaciones'
+    // Always required (per spec)
+    const alwaysRequired: (keyof FormState)[] = [
+      'name', 'ramo', 'etapa',
+      'primaObjetivo', 'claveAgente', 'nearshoring', 'primaCotizada', 'observaciones'
     ];
-
-    requiredFields.forEach(field => {
+    alwaysRequired.forEach(field => {
       if (!formData[field]) newErrors[field] = true;
     });
+
+    // Ramo-conditional required
+    if (showGiroNegocio && !formData.giroNegocio) newErrors.giroNegocio = true;
+    if (showSubramo && !formData.subramo) newErrors.subramo = true;
+    if (showTipoExperiencia && !formData.tipoExperiencia) newErrors.tipoExperiencia = true;
+
+    // If Planmed=Si, tipoPlanMed required
+    if (showTipoPlanMed && !formData.tipoPlanMed) newErrors.tipoPlanMed = true;
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -263,33 +318,50 @@ export default function NewAccount() {
         // Update existing case
         await api.put(`/cases/${currentCaseId}`, { ...formData, accountId });
         setSuccessMsg(`Caso actualizado correctamente`);
-      } else if (!accountId) {
-        // Double-check duplicate before creating
-        const dupCheck = await api.get(`/accounts/check-duplicate?name=${encodeURIComponent(formData.name.trim())}`);
-        if (dupCheck.data.exists) {
-          setDuplicateError(`Cuenta "${formData.name}" ya existe. No se puede crear una cuenta duplicada.`);
-          alert(`Cuenta "${formData.name}" ya existe. No se puede crear una cuenta duplicada.`);
-          setLoading(false);
-          return;
-        }
-        // Create NEW Account AND Case (Transaction in backend)
-        const res = await api.post('/accounts', { ...formData, parentCaseId });
-        setCreatedCaseId(res.data.case.id);
-        const folio = res.data.case.refnum || res.data.case.id;
-        setSuccessMsg(`✅ Proceso exitoso — Folio: ${folio}`);
-        // Update URL to prevent double creation
-        navigate(`/accounts/new?id=${res.data.account.id}&caseId=${res.data.case.id}`, { replace: true });
       } else {
-        // Create NEW Case for EXISTING Account
-        const res = await api.post('/cases', { ...formData, accountId, parentCaseId });
-        setCreatedCaseId(res.data.id);
-        const folio = res.data.refnum || res.data.id;
-        setSuccessMsg(`✅ Proceso exitoso — Folio: ${folio}`);
-        navigate(`/accounts/new?id=${accountId}&caseId=${res.data.id}`, { replace: true });
+        // --- NEW CREATION Logic ---
+        // 1. Determine the target Account ID
+        let targetAccountId = accountId;
+
+        if (!targetAccountId) {
+          // If no account ID in URL (we're creating from scratch), check if name exists
+          const dupCheck = await api.get(`/accounts/check-duplicate?name=${encodeURIComponent(formData.name.trim())}`);
+          if (dupCheck.data.exists) {
+            targetAccountId = dupCheck.data.account.id;
+          }
+        }
+
+        // 2. Validate Ramo Duplication (US-9) for the target Account
+        if (targetAccountId && formData.ramo) {
+          const dupCase = await api.get(`/cases/check-duplicate?accountId=${targetAccountId}&ramo=${encodeURIComponent(formData.ramo)}`);
+          if (dupCase.data.exists) {
+            alert(`Ya existe un caso abierto (${dupCase.data.refnum}) para esta cuenta con ramo "${formData.ramo}". No se puede crear otro.`);
+            setLoading(false);
+            return;
+          }
+        }
+
+        // 3. Execute Creation
+        if (!targetAccountId) {
+          // Create NEW Account AND Case
+          const res = await api.post('/accounts', { ...formData, parentCaseId });
+          setCreatedCaseId(res.data.case.id);
+          const folio = res.data.case.refnum || res.data.case.id;
+          setSuccessMsg(`✅ Proceso exitoso — Folio: ${folio}`);
+          navigate(`/accounts/new?id=${res.data.account.id}&caseId=${res.data.case.id}`, { replace: true });
+        } else {
+          // Create NEW Case for EXISTING Account
+          const res = await api.post('/cases', { ...formData, accountId: targetAccountId, parentCaseId });
+          setCreatedCaseId(res.data.id);
+          const folio = res.data.refnum || res.data.id;
+          setSuccessMsg(`✅ Proceso exitoso — Folio: ${folio}`);
+          navigate(`/accounts/new?id=${targetAccountId}&caseId=${res.data.id}`, { replace: true });
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setSuccessMsg(`Error al guardar`);
+      const msg = error?.response?.data?.message || error?.message || 'Error al guardar';
+      setSuccessMsg(msg);
     } finally {
       setLoading(false);
       setTimeout(() => setSuccessMsg(''), 6000);
@@ -303,11 +375,29 @@ export default function NewAccount() {
       let currentCaseId = createdCaseId || caseId;
 
       if (!currentCaseId) {
-        if (!accountId) {
+        // --- NEW CREATION Logic ---
+        let targetAccountId = accountId;
+        if (!targetAccountId) {
+          const dupCheck = await api.get(`/accounts/check-duplicate?name=${encodeURIComponent(formData.name.trim())}`);
+          if (dupCheck.data.exists) {
+            targetAccountId = dupCheck.data.account.id;
+          }
+        }
+
+        if (targetAccountId && formData.ramo) {
+          const dupCase = await api.get(`/cases/check-duplicate?accountId=${targetAccountId}&ramo=${encodeURIComponent(formData.ramo)}`);
+          if (dupCase.data.exists) {
+            alert(`Ya existe un caso abierto (${dupCase.data.refnum}) para esta cuenta con ramo "${formData.ramo}". No se puede crear otro.`);
+            setLoading(false);
+            return;
+          }
+        }
+
+        if (!targetAccountId) {
           const res = await api.post('/accounts', { ...formData, parentCaseId });
           currentCaseId = res.data.case.id;
         } else {
-          const res = await api.post('/cases', { ...formData, accountId, parentCaseId });
+          const res = await api.post('/cases', { ...formData, accountId: targetAccountId, parentCaseId });
           currentCaseId = res.data.id;
         }
       } else {
@@ -315,8 +405,10 @@ export default function NewAccount() {
       }
 
       navigate(`/negotiation/${currentCaseId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      const msg = error?.response?.data?.message || error?.message || 'Error al avanzar';
+      alert(msg);
     } finally {
       setLoading(false);
     }
@@ -361,81 +453,126 @@ export default function NewAccount() {
         <div className="form-grid">
           <div>
             <label>{t('account')} *</label>
-            <input className={getInputClass('name')} value={formData.name} onChange={e => handleChange('name', e.target.value)} onBlur={checkDuplicateAccount} placeholder={t('account')} />
-            {duplicateError && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', fontWeight: 600 }}>⚠️ {duplicateError}</p>}
+            <input
+              className={getInputClass('name')}
+              value={formData.name}
+              onChange={e => handleChange('name', e.target.value)}
+              placeholder={t('account')}
+              disabled={!!(accountId || caseId)}
+              style={(accountId || caseId) ? { opacity: 0.7, cursor: 'not-allowed' } : {}}
+            />
           </div>
           <div>
             <label>{t('ramo')} *</label>
             <select className={getInputClass('ramo')} value={formData.ramo} onChange={e => handleChange('ramo', e.target.value)}>
               <option value="">{t('select')}</option>
-              {RAMOS.map(r => <option key={r} value={r}>{r}</option>)}
+              {catValues('ramo').map(r => <option key={r} value={r}>{r}</option>)}
             </select>
+            {duplicateError && <p style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '0.25rem', fontWeight: 600 }}>⚠️ {duplicateError}</p>}
           </div>
-          <div>
-            <label>{t('subramo')} *</label>
-            <select className={getInputClass('subramo')} value={formData.subramo} onChange={e => handleChange('subramo', e.target.value)} disabled={!formData.ramo}>
-              <option value="">{t('select')}</option>
-              {SUBRAMOS.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-          <div>
-            <label>{t('business_type')} *</label>
-            <select className={getInputClass('giroNegocio')} value={formData.giroNegocio} onChange={e => handleChange('giroNegocio', e.target.value)}>
-              <option value="">{t('select')}</option>
-              <option value="Retail">Retail</option>
-              <option value="Manufactura">Manufactura</option>
-              <option value="Servicios">Servicios</option>
-              <option value="Tecnología">Tecnología</option>
-            </select>
-          </div>
-          <div>
-            <label>{t('exp_type')} *</label>
-            <select className={getInputClass('tipoExperiencia')} value={formData.tipoExperiencia} onChange={e => handleChange('tipoExperiencia', e.target.value)}>
-              <option value="">{t('select')}</option>
-              <option value="Propia">Propia</option>
-              <option value="Global">Global</option>
-            </select>
-          </div>
+
+          {/* Conditional: Daños → Subramo */}
+          {showSubramo && (
+            <div>
+              <label>{t('subramo')} *</label>
+              <select className={getInputClass('subramo')} value={formData.subramo} onChange={e => handleChange('subramo', e.target.value)}>
+                <option value="">{t('select')}</option>
+                {catValues('subramo').map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Conditional: Autos → Giro de Negocio */}
+          {showGiroNegocio && (
+            <div>
+              <label>{t('business_type')} *</label>
+              <select className={getInputClass('giroNegocio')} value={formData.giroNegocio} onChange={e => handleChange('giroNegocio', e.target.value)}>
+                <option value="">{t('select')}</option>
+                {catValues('giroNegocio').map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Conditional: Salud/Vida → Tipo Experiencia */}
+          {showTipoExperiencia && (
+            <div>
+              <label>{t('exp_type')} *</label>
+              <select className={getInputClass('tipoExperiencia')} value={formData.tipoExperiencia} onChange={e => handleChange('tipoExperiencia', e.target.value)}>
+                <option value="">{t('select')}</option>
+                {catValues('tipoExperiencia').map(te => <option key={te} value={te}>{te}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Cuidado Integral — disabled if Planmed=Si */}
           <div>
             <label>{t('integral_care')}</label>
-            <select className="input" value={formData.cuidadoIntegral} onChange={e => handleChange('cuidadoIntegral', e.target.value)}>
+            <select
+              className="input"
+              value={formData.cuidadoIntegral}
+              onChange={e => handleChange('cuidadoIntegral', e.target.value)}
+              disabled={ciDisabled}
+              style={ciDisabled ? { opacity: 0.5 } : {}}
+            >
+              <option value="">{t('select')}</option>
+              {(catValues('cuidaIntegral').length ? catValues('cuidaIntegral') : ['Si', 'No']).map(ci => <option key={ci} value={ci}>{ci}</option>)}
+            </select>
+            {ciDisabled && <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Deshabilitado (Planmed activo)</p>}
+          </div>
+
+          {/* Plan CI — only if Cuidado Integral = Si */}
+          {showPlan && (
+            <div>
+              <label>{t('plan')}</label>
+              <select className="input" value={formData.plan} onChange={e => handleChange('plan', e.target.value)}>
+                <option value="">{t('select')}</option>
+                {catValues('plan').map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Cuenta con Planmed — disabled if CI=Si */}
+          <div>
+            <label>Cuenta con Planmed</label>
+            <select
+              className="input"
+              value={formData.cuentaConPlanmed}
+              onChange={e => handleChange('cuentaConPlanmed', e.target.value)}
+              disabled={planmedDisabled}
+              style={planmedDisabled ? { opacity: 0.5 } : {}}
+            >
               <option value="">{t('select')}</option>
               <option value="Si">Si</option>
               <option value="No">No</option>
             </select>
+            {planmedDisabled && <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Deshabilitado (Cuidado Integral activo)</p>}
           </div>
-          <div>
-            <label>{t('planmed')}</label>
-            <select className="input" value={formData.cuentaConPlanmed} onChange={e => handleChange('cuentaConPlanmed', e.target.value)}>
-              <option value="">{t('select')}</option>
-              <option value="Planmed Hibrido">Planmed Híbrido</option>
-              <option value="Planmed Estandar">Planmed Estándar</option>
-              <option value="Planmed Esencial">Planmed Esencial</option>
-              <option value="Planmed Optimo">Planmed Óptimo</option>
-            </select>
-          </div>
-          <div>
-            <label>{t('plan')}</label>
-            <select className="input" value={formData.plan} onChange={e => handleChange('plan', e.target.value)}>
-              <option value="">{t('select')}</option>
-              <option value="Cuidado Integral Salud">Cuidado Integral Salud</option>
-              <option value="Cuidado Integral Plus">Cuidado Integral Plus</option>
-            </select>
-          </div>
+
+          {/* Tipo de Planmed — only if Cuenta con Planmed = Si */}
+          {showTipoPlanMed && (
+            <div>
+              <label>Tipo de Planmed *</label>
+              <select className={getInputClass('tipoPlanMed')} value={formData.tipoPlanMed} onChange={e => handleChange('tipoPlanMed', e.target.value)}>
+                <option value="">{t('select')}</option>
+                {catValues('tipoPlanMed').map(tp => <option key={tp} value={tp}>{tp}</option>)}
+              </select>
+            </div>
+          )}
+
           <div>
             <label>{t('stage')} *</label>
             <select className={getInputClass('etapa')} value={formData.etapa} onChange={e => handleChange('etapa', e.target.value)}>
-              <option value="Creado">Creado</option>
-              <option value="Prospección">Prospección</option>
+              <option value="">{t('select')}</option>
+              {(catValues('etapa').length ? catValues('etapa') : ['Creado', 'Prospección']).map(et => <option key={et} value={et}>{et}</option>)}
             </select>
           </div>
           <div>
-            <label>{t('start_date')} *</label>
-            <input type="date" className={getInputClass('fechaInicioVigencia')} value={formData.fechaInicioVigencia} onChange={e => handleChange('fechaInicioVigencia', e.target.value)} />
+            <label>{t('start_date')}</label>
+            <input type="date" className="input" value={formData.fechaInicioVigencia} onChange={e => handleChange('fechaInicioVigencia', e.target.value)} />
           </div>
           <div>
             <label>{t('target_premium')} *</label>
-            <input type="number" className={getInputClass('primaObjetivo')} value={formData.primaObjetivo} onChange={e => handleChange('primaObjetivo', e.target.value)} placeholder="0.00" />
+            <input type="text" className={getInputClass('primaObjetivo')} value={formatMoneyInput(formData.primaObjetivo).display} onChange={e => handleChange('primaObjetivo', parseMoney(e.target.value))} placeholder="0.00" />
           </div>
         </div>
 
@@ -485,8 +622,8 @@ export default function NewAccount() {
         <div className="form-section-title">{t('section_product')}</div>
         <div className="form-grid">
           <div>
-            <label>{t('new_channel')} *</label>
-            <select className={getInputClass('nuevoConducto')} value={formData.nuevoConducto} onChange={e => handleChange('nuevoConducto', e.target.value)}>
+            <label>{t('new_channel')}</label>
+            <select className="input" value={formData.nuevoConducto} onChange={e => handleChange('nuevoConducto', e.target.value)}>
               <option value="">{t('select')}</option>
               <option value="Si">Si</option>
               <option value="No">No</option>
@@ -503,7 +640,7 @@ export default function NewAccount() {
 
           <div>
             <label>{t('quoted_premium')} *</label>
-            <input type="number" className="input" value={formData.primaCotizada} onChange={e => handleChange('primaCotizada', e.target.value)} />
+            <input type="text" className={getInputClass('primaCotizada')} value={formatMoneyInput(formData.primaCotizada).display} onChange={e => handleChange('primaCotizada', parseMoney(e.target.value))} placeholder="0.00" />
           </div>
           <div>
             <label>{t('population_incisos')}</label>
@@ -515,11 +652,12 @@ export default function NewAccount() {
           </div>
           <div>
             <label>{t('underwriter')}</label>
-            <select className="input" value={formData.responsableSuscripcion} onChange={e => handleChange('responsableSuscripcion', e.target.value)}>
-              <option value="">{t('select')}</option>
-              <option value="Juan Perez">Juan Perez</option>
-              <option value="Maria Lopez">Maria Lopez</option>
-            </select>
+            <Combobox
+              options={catValues('responsableSuscripcion')}
+              value={formData.responsableSuscripcion}
+              onChange={(val) => handleChange('responsableSuscripcion', val)}
+              placeholder="Buscar responsable..."
+            />
           </div>
           <div>
             <label>{t('req_date')}</label>

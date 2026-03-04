@@ -16,6 +16,7 @@ import { LanguageProvider } from './context/LanguageContext';
 import Emission from './features/workflow/Emission';
 import Reports from './features/reports/Reports';
 import Dashboard from './features/dashboard/Dashboard';
+import CatalogsConfig from './features/catalogs/CatalogsConfig';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -50,6 +51,7 @@ export default function App() {
               <Route path="/bandeja" element={<PrivateRoute><BandejaSeguimiento /></PrivateRoute>} />
               <Route path="/cancelados" element={<PrivateRoute><CancelledCases /></PrivateRoute>} />
               <Route path="/reportes" element={<PrivateRoute><Reports /></PrivateRoute>} />
+              <Route path="/catalogos" element={<PrivateRoute><CatalogsConfig /></PrivateRoute>} />
               <Route path="/workflow/:id" element={<PrivateRoute><WorkflowDetail /></PrivateRoute>} />
               <Route path="/negotiation/:id" element={<PrivateRoute><Negotiation /></PrivateRoute>} />
               <Route path="/emission/:id" element={<PrivateRoute><Emission /></PrivateRoute>} />
