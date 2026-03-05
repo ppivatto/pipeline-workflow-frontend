@@ -154,8 +154,8 @@ export default function BandejaSeguimiento() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', background: 'var(--header-bg)' }}>
-              {['Folio', 'Cuenta', 'Ramo', 'Etapa', 'Tipo', 'Subtipo', 'Estado', 'Última modif.', 'Ficha'].map((h) => (
-                <th key={h} style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', ...(h === 'Ficha' ? { width: 80, textAlign: 'center' as const } : {}) }}>{h}</th>
+              {['Folio', 'Cuenta', 'Ramo', 'Etapa', 'Tipo', 'Subtipo', 'Estado', 'Última modif.', 'Detalle'].map((h) => (
+                <th key={h} style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', ...(h === 'Detalle' ? { width: 80, textAlign: 'center' as const } : {}) }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -189,12 +189,12 @@ export default function BandejaSeguimiento() {
                     </td>
                     <td style={{ padding: '0.75rem 1rem', textAlign: 'center' }}>
                       <button
-                        title="Ver ficha del caso"
+                        title="Ver detalle del caso"
                         className="btn btn-secondary"
                         style={{ padding: '0.35rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem' }}
                         onClick={(e) => { e.stopPropagation(); setFichaCaseId(c.id); }}
                       >
-                        <Eye size={14} /> Ficha
+                        <Eye size={14} /> Detalle
                       </button>
                     </td>
                   </tr>

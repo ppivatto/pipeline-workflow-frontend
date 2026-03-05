@@ -85,7 +85,7 @@ export default function AccountsList() {
               <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)', background: 'var(--header-bg)' }}>
                 <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>Nombre/Razón social</th>
                 <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase' }}>{t('identifier')}</th>
-                <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', width: 80, textAlign: 'center' }}>Ficha</th>
+                <th style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', width: 80, textAlign: 'center' }}>{t('ficha')}</th>
               </tr>
             </thead>
             <tbody>
@@ -128,7 +128,7 @@ export default function AccountsList() {
                         style={{ padding: '0.35rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem' }}
                         onClick={(e) => { e.stopPropagation(); setFichaAccountId(account.id); }}
                       >
-                        <Eye size={14} /> Ficha
+                        <Eye size={14} /> {t('ficha')}
                       </button>
                     </td>
                   </tr>
