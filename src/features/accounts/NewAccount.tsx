@@ -504,59 +504,64 @@ export default function NewAccount() {
             </div>
           )}
 
-          {/* Cuidado Integral — disabled if Planmed=Si */}
-          <div>
-            <label>{t('integral_care')}</label>
-            <select
-              className="input"
-              value={formData.cuidadoIntegral}
-              onChange={e => handleChange('cuidadoIntegral', e.target.value)}
-              disabled={ciDisabled}
-              style={ciDisabled ? { opacity: 0.5 } : {}}
-            >
-              <option value="">{t('select')}</option>
-              {(catValues('cuidaIntegral').length ? catValues('cuidaIntegral') : ['Si', 'No']).map(ci => <option key={ci} value={ci}>{ci}</option>)}
-            </select>
-            {ciDisabled && <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Deshabilitado (Planmed activo)</p>}
-          </div>
+          {/* Cuidado Integral / Plan / Planmed — only for Salud or Vida */}
+          {(formData.ramo === 'Salud' || formData.ramo === 'Vida') && (
+            <>
+              {/* Cuidado Integral — disabled if Planmed=Si */}
+              <div>
+                <label>{t('integral_care')}</label>
+                <select
+                  className="input"
+                  value={formData.cuidadoIntegral}
+                  onChange={e => handleChange('cuidadoIntegral', e.target.value)}
+                  disabled={ciDisabled}
+                  style={ciDisabled ? { opacity: 0.5 } : {}}
+                >
+                  <option value="">{t('select')}</option>
+                  {(catValues('cuidaIntegral').length ? catValues('cuidaIntegral') : ['Si', 'No']).map(ci => <option key={ci} value={ci}>{ci}</option>)}
+                </select>
+                {ciDisabled && <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Deshabilitado (Planmed activo)</p>}
+              </div>
 
-          {/* Plan CI — only if Cuidado Integral = Si */}
-          {showPlan && (
-            <div>
-              <label>{t('plan')}</label>
-              <select className="input" value={formData.plan} onChange={e => handleChange('plan', e.target.value)}>
-                <option value="">{t('select')}</option>
-                {catValues('plan').map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-          )}
+              {/* Plan CI — only if Cuidado Integral = Si */}
+              {showPlan && (
+                <div>
+                  <label>{t('plan')}</label>
+                  <select className="input" value={formData.plan} onChange={e => handleChange('plan', e.target.value)}>
+                    <option value="">{t('select')}</option>
+                    {catValues('plan').map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+              )}
 
-          {/* Cuenta con Planmed — disabled if CI=Si */}
-          <div>
-            <label>Cuenta con Planmed</label>
-            <select
-              className="input"
-              value={formData.cuentaConPlanmed}
-              onChange={e => handleChange('cuentaConPlanmed', e.target.value)}
-              disabled={planmedDisabled}
-              style={planmedDisabled ? { opacity: 0.5 } : {}}
-            >
-              <option value="">{t('select')}</option>
-              <option value="Si">Si</option>
-              <option value="No">No</option>
-            </select>
-            {planmedDisabled && <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Deshabilitado (Cuidado Integral activo)</p>}
-          </div>
+              {/* Cuenta con Planmed — disabled if CI=Si */}
+              <div>
+                <label>Cuenta con Planmed</label>
+                <select
+                  className="input"
+                  value={formData.cuentaConPlanmed}
+                  onChange={e => handleChange('cuentaConPlanmed', e.target.value)}
+                  disabled={planmedDisabled}
+                  style={planmedDisabled ? { opacity: 0.5 } : {}}
+                >
+                  <option value="">{t('select')}</option>
+                  <option value="Si">Si</option>
+                  <option value="No">No</option>
+                </select>
+                {planmedDisabled && <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Deshabilitado (Cuidado Integral activo)</p>}
+              </div>
 
-          {/* Tipo de Planmed — only if Cuenta con Planmed = Si */}
-          {showTipoPlanMed && (
-            <div>
-              <label>Tipo de Planmed *</label>
-              <select className={getInputClass('tipoPlanMed')} value={formData.tipoPlanMed} onChange={e => handleChange('tipoPlanMed', e.target.value)}>
-                <option value="">{t('select')}</option>
-                {catValues('tipoPlanMed').map(tp => <option key={tp} value={tp}>{tp}</option>)}
-              </select>
-            </div>
+              {/* Tipo de Planmed — only if Cuenta con Planmed = Si */}
+              {showTipoPlanMed && (
+                <div>
+                  <label>Tipo de Planmed *</label>
+                  <select className={getInputClass('tipoPlanMed')} value={formData.tipoPlanMed} onChange={e => handleChange('tipoPlanMed', e.target.value)}>
+                    <option value="">{t('select')}</option>
+                    {catValues('tipoPlanMed').map(tp => <option key={tp} value={tp}>{tp}</option>)}
+                  </select>
+                </div>
+              )}
+            </>
           )}
 
           <div>
