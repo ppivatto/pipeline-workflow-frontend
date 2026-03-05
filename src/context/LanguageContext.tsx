@@ -138,7 +138,7 @@ const translations = {
     success_create: 'Creado correctamente',
 
     // Ficha
-    ficha: 'Ficha',
+    ficha: 'Detalle',
     ficha_cuenta: 'Ficha de Cuenta',
     ficha_caso: 'Ficha de Caso',
     ficha_loading: 'Cargando ficha...',
@@ -357,7 +357,7 @@ const translations = {
     success_create: 'Created successfully',
 
     // Ficha
-    ficha: 'Summary',
+    ficha: 'Detail',
     ficha_cuenta: 'Account Summary',
     ficha_caso: 'Case Summary',
     ficha_loading: 'Loading summary...',
@@ -576,7 +576,7 @@ const translations = {
     success_create: 'Criado com sucesso',
 
     // Ficha
-    ficha: 'Ficha',
+    ficha: 'Detalhe',
     ficha_cuenta: 'Ficha da Conta',
     ficha_caso: 'Ficha do Caso',
     ficha_loading: 'Carregando ficha...',
